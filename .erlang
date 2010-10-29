@@ -1,0 +1,3 @@
+%% evaluating ~/.erlang file ..
+    file:eval(os:getenv("HOME") ++ "/.erlang"),
+    true = code:add_pathz("ebin").

@@ -1,0 +1,16 @@
+deps
+ebin
+log/*.log
+tmp
+tmp/**/*
+.DS_Store
+engine/*.dump
+*.beam
+admin/config/database.yml
+erl_crash.dump
+Mnesia*
+*.sw?
+admin/log/*.log
+.project
+.settings
+*.orig
