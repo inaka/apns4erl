@@ -10,13 +10,14 @@
 -include("apns.hrl").
 
 -export([start/0, stop/0]).
--export([connect/1, connect/2]).
+-export([connect/0, connect/1, connect/2, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5]).
 
 %%% @doc Starts the application
 %%% @spec start() -> ok | {error, {already_started, apns}}.
 -spec start() -> ok | {error, {already_started, apns}}.
 start() ->
+  application:start(public_key),
   application:start(ssl),
   application:start(apns).
 
@@ -26,10 +27,19 @@ start() ->
 stop() ->
   application:stop(apns).
 
+%% @doc Opens an unnamed connection using the default parameters
+%% @spec connect() -> {ok, pid()} | {error, Reason::term()}.
+-spec connect() -> {ok, pid()} | {error, Reason::term()}.
+connect() ->
+  connect(#apns_connection{}).
+
 %% @doc Opens an unnamed connection using the given certificate file
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(string() | #apns_connection{}) -> {ok, pid()}.
--spec connect(string() | #apns_connection{}) -> {ok, pid()}.
+%%      or the name and default configuration if a name is given
+%% @spec connect(atom() | string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
+-spec connect(atom() | string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
+connect(Name) when is_atom(Name) ->
+  connect(Name, #apns_connection{});
 connect(Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Connection);
 connect(CertFile) ->
@@ -38,12 +48,16 @@ connect(CertFile) ->
 %% @doc Opens an connection named after the atom()
 %%      using the given certificate file
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(atom(), string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}}.
--spec connect(atom(), string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}}.
+%% @spec connect(atom(), string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
+-spec connect(atom(), string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
 connect(Name, CertFile) ->
   connect(Name, #apns_connection{cert_file = CertFile}).
+
+-spec disconnect(conn_id()) -> ok.
+disconnect(ConnId) ->
+  apns_connection:stop(ConnId).
 
 %% @doc Sends a message to Apple
 %% @spec send_message(conn_id(), #apns_msg{}) -> ok.
