@@ -20,14 +20,15 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Public API
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @spec send_message(conn_id(), #apns_msg{}) -> ok.
+
 %% @doc  Sends a message to apple through the connection
+%% @spec send_message(conn_id(), #apns_msg{}) -> ok
 -spec send_message(conn_id(), #apns_msg{}) -> ok.
 send_message(ConnId, Msg) ->
   gen_server:cast(ConnId, Msg).
 
-%% @spec stop(conn_id()) -> ok
 %% @doc  Stops the connection
+%% @spec stop(conn_id()) -> ok
 -spec stop(conn_id()) -> ok.
 stop(ConnId) ->
   gen_server:cast(ConnId, stop).
@@ -43,6 +44,7 @@ start_link(Connection) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Server implementation, a.k.a.: callbacks
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% @hidden
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
@@ -116,8 +118,8 @@ send_payload(Socket, BinToken, Payload) ->
     PayloadLength = length(Payload),
     BinPayload = list_to_binary(Payload),
     Packet = <<0:8, 32:16/big,
-               %%16#ac812b2d723f40f206204402f1c870c8d8587799370bd41d6723145c4e4ebbd7:256/big,
-               BinToken/binary,
+               16#ac812b2d723f40f206204402f1c870c8d8587799370bd41d6723145c4e4ebbd7:256/big,
+               %%BinToken/binary,
                PayloadLength:16/big,
                BinPayload/binary>>,
     ssl:send(Socket, Packet).

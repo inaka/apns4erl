@@ -14,3 +14,4 @@ admin/log/*.log
 .project
 .settings
 *.orig
+doc
