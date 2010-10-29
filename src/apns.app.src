@@ -1,0 +1,13 @@
+{application, apns,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  ssl
+                 ]},
+  {mod, { apns_app, []}},
+  {env, []}
+ ]}.
