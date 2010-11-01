@@ -84,7 +84,7 @@ handle_cast(stop, State) ->
 
 %% @hidden
 -spec handle_info({ssl_closed, ssl:sslsocket()} | X, state()) -> {stop, ssl_closed | {unknown_request, X}, state()}.
-handle_info({ssl_closed, _SslSocket}, State) ->
+handle_info({ssl_closed, SslSocket}, State = #state{socket = SslSocket}) ->
   {stop, ssl_closed, State};
 handle_info(Request, State) ->
   {stop, {unknown_request, Request}, State}.

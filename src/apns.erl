@@ -55,6 +55,8 @@ connect(Name, Connection) when is_record(Connection, apns_connection) ->
 connect(Name, CertFile) ->
   connect(Name, #apns_connection{cert_file = CertFile}).
 
+%% @doc Closes an open connection
+%% @spec spec disconnect(conn_id()) -> ok
 -spec disconnect(conn_id()) -> ok.
 disconnect(ConnId) ->
   apns_connection:stop(ConnId).
