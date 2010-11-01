@@ -8,6 +8,11 @@
                   stdlib,
                   ssl
                  ]},
-  {mod, { apns_app, []}},
-  {env, []}
+  {mod, {apns_app, []}},
+  {env, [{ssl_seed,   "someseedstring"},
+         {apple_host, "gateway.sandbox.push.apple.com"},
+         {apple_port, 2195},
+         {cert_file,  "priv/cert.pem"},
+         {timeout, 30000}
+        ]}
  ]}.

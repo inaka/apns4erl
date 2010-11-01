@@ -34,7 +34,7 @@ stop() ->
 %% @spec connect() -> {ok, pid()} | {error, Reason::term()}
 -spec connect() -> {ok, pid()} | {error, Reason::term()}.
 connect() ->
-  connect(#apns_connection{}).
+  connect(default_connection()).
 
 %% @doc Opens an unnamed connection using the given certificate file
 %%      or using the given #apns_connection{} parameters
@@ -46,7 +46,7 @@ connect(Name) when is_atom(Name) ->
 connect(Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Connection);
 connect(CertFile) ->
-  connect(#apns_connection{cert_file = CertFile}).
+  connect((default_connection())#apns_connection{cert_file = CertFile}).
 
 %% @doc Opens an connection named after the atom()
 %%      using the given certificate file
@@ -56,7 +56,7 @@ connect(CertFile) ->
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
 connect(Name, CertFile) ->
-  connect(Name, #apns_connection{cert_file = CertFile}).
+  connect(Name, (default_connection())#apns_connection{cert_file = CertFile}).
 
 %% @doc Closes an open connection
 %% @spec spec disconnect(conn_id()) -> ok
@@ -100,3 +100,18 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
                                  badge = Badge,
                                  sound = Sound,
                                  device_token = DeviceToken}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+get_env(K, Def) ->
+  case application:get_env(apns, K) of
+    undefined -> Def;
+    V -> V
+  end.
+
+default_connection() ->
+  DefaultConn = #apns_connection{},
+  DefaultConn#apns_connection{apple_host  = get_env(apple_host, DefaultConn#apns_connection.apple_host),
+                              apple_port  = get_env(apple_port, DefaultConn#apns_connection.apple_port),
+                              cert_file   = get_env(cert_file,  DefaultConn#apns_connection.cert_file),
+                              ssl_seed    = get_env(ssl_seed,   DefaultConn#apns_connection.ssl_seed),
+                              timeout     = get_env(timeout,    DefaultConn#apns_connection.timeout)}.
