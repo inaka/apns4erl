@@ -13,6 +13,9 @@
 -export([connect/0, connect/1, connect/2, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5]).
 
+-type conn_id() :: atom() | pid().
+-export_type([conn_id/0]).
+
 %% @doc Starts the application
 %% @spec start() -> ok | {error, {already_started, apns}}
 -spec start() -> ok | {error, {already_started, apns}}.

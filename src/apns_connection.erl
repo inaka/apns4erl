@@ -22,14 +22,14 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc  Sends a message to apple through the connection
-%% @spec send_message(conn_id(), #apns_msg{}) -> ok
--spec send_message(conn_id(), #apns_msg{}) -> ok.
+%% @spec send_message(apns:conn_id(), #apns_msg{}) -> ok
+-spec send_message(apns:conn_id(), #apns_msg{}) -> ok.
 send_message(ConnId, Msg) ->
   gen_server:cast(ConnId, Msg).
 
 %% @doc  Stops the connection
-%% @spec stop(conn_id()) -> ok
--spec stop(conn_id()) -> ok.
+%% @spec stop(apns:conn_id()) -> ok
+-spec stop(apns:conn_id()) -> ok.
 stop(ConnId) ->
   gen_server:cast(ConnId, stop).
 
@@ -115,8 +115,8 @@ build_payload([], Payload) ->
   ["{\"aps\":{", string:join(Payload,",") ,"}}"].
 
 send_payload(Socket, BinToken, Payload) -> 
-    PayloadLength = length(Payload),
     BinPayload = list_to_binary(Payload),
+    PayloadLength = erlang:size(BinPayload),
     Packet = <<0:8, 32:16/big,
                %%16#ac812b2d723f40f206204402f1c870c8d8587799370bd41d6723145c4e4ebbd7:256/big,
                BinToken/binary,
