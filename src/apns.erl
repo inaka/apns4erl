@@ -104,8 +104,8 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 get_env(K, Def) ->
   case application:get_env(apns, K) of
-    undefined -> Def;
-    V -> V
+    {ok, V} -> V;
+    _ -> Def
   end.
 
 default_connection() ->
