@@ -20,8 +20,8 @@
 %% @spec start() -> ok | {error, {already_started, apns}}
 -spec start() -> ok | {error, {already_started, apns}}.
 start() ->
-  application:start(public_key),
-  application:start(ssl),
+  _ = application:start(public_key),
+  _ = application:start(ssl),
   application:start(apns).
 
 %% @doc Stops the application
