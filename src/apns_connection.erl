@@ -52,7 +52,7 @@ init(Connection) ->
   case ssl:connect(
          Connection#apns_connection.apple_host,
          Connection#apns_connection.apple_port,
-         [{certfile, Connection#apns_connection.cert_file}, {mode, binary}],
+         [{certfile, filename:absname(Connection#apns_connection.cert_file)}, {mode, binary}],
          Connection#apns_connection.timeout) of
     {ok, Socket} ->
       {ok, #state{socket = Socket}};
