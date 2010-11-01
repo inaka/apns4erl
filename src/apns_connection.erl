@@ -10,11 +10,12 @@
 -behaviour(gen_server).
 
 -include("apns.hrl").
+-include_lib("ssl/src/ssl_int.hrl").
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
 
--record(state, {socket :: ssl:sslsocket()}).
+-record(state, {socket :: #sslsocket{}}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -49,14 +50,15 @@ start_link(Connection) ->
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
   ok = ssl:seed(Connection#apns_connection.ssl_seed),
-  case ssl:connect(
+  try ssl:connect(
          Connection#apns_connection.apple_host,
          Connection#apns_connection.apple_port,
          [{certfile, filename:absname(Connection#apns_connection.cert_file)}, {mode, binary}],
          Connection#apns_connection.timeout) of
     {ok, Socket} ->
-      {ok, #state{socket = Socket}};
-    {error, Reason} ->
+      {ok, #state{socket = Socket}}
+  catch
+    _:{error, Reason} ->
       {stop, Reason}
   end.
 
@@ -83,7 +85,7 @@ handle_cast(stop, State) ->
   {stop, normal, State}.
 
 %% @hidden
--spec handle_info({ssl_closed, ssl:sslsocket()} | X, state()) -> {stop, ssl_closed | {unknown_request, X}, state()}.
+-spec handle_info({ssl_closed, #sslsocket{}} | X, state()) -> {stop, ssl_closed | {unknown_request, X}, state()}.
 handle_info({ssl_closed, SslSocket}, State = #state{socket = SslSocket}) ->
   {stop, ssl_closed, State};
 handle_info(Request, State) ->
@@ -114,14 +116,15 @@ build_payload([{Key,Value}|Params], Payload) ->
 build_payload([], Payload) ->
   ["{\"aps\":{", string:join(Payload,",") ,"}}"].
 
+-spec send_payload(#sslsocket{}, binary(), iolist()) -> ok | {error, term()}.
 send_payload(Socket, BinToken, Payload) -> 
     BinPayload = list_to_binary(Payload),
     PayloadLength = erlang:size(BinPayload),
-    Packet = <<0:8, 32:16/big,
-               %%16#ac812b2d723f40f206204402f1c870c8d8587799370bd41d6723145c4e4ebbd7:256/big,
-               BinToken/binary,
-               PayloadLength:16/big,
-               BinPayload/binary>>,
+    Packet = [<<0:8, 32:16/big,
+                %%16#ac812b2d723f40f206204402f1c870c8d8587799370bd41d6723145c4e4ebbd7:256/big,
+                BinToken/binary,
+                PayloadLength:16/big,
+                BinPayload/binary>>],
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
