@@ -23,7 +23,7 @@ run() ->
   ?assertEqual(ok, apns:start()),
   {ok, Pid} = apns:connect(?TEST_CONNECTION),
   Ref = erlang:monitor(process, Pid),
-  ?assertEqual(ok, apns:send_badge(?TEST_CONNECTION, ?DEVICE_TOKEN, 1)),
+  ?assertEqual(ok, apns:send_message(?TEST_CONNECTION, ?DEVICE_TOKEN, "Test Alert", random:uniform(10), "chime")),
   receive
     {'DOWN', Ref, _, _, _} = DownMsg ->
       ?fail(DownMsg);
