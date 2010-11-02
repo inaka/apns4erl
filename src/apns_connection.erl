@@ -77,7 +77,6 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
   case send_payload(Socket, BinToken, Payload) of
     ok ->
-      error_logger:info_msg("Message sent:~p~n", [Payload]),
       {noreply, State};
     {error, Reason} ->
       {stop, {error, Reason}, State}
@@ -126,6 +125,7 @@ send_payload(Socket, BinToken, Payload) ->
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
+    error_logger:info_msg("Sending:~s~n", [BinPayload]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
