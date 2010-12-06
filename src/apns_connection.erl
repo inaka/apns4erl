@@ -54,7 +54,7 @@ init(Connection) ->
          Connection#apns_connection.apple_host,
          Connection#apns_connection.apple_port,
          [{certfile, filename:absname(Connection#apns_connection.cert_file)},
-          {ssl_imp, old}, {mode, binary}], %%TODO: Check if it works with the new ssl_imp
+          {ssl_imp, old}, {mode, binary}],
          Connection#apns_connection.timeout) of
     {ok, Socket} ->
       {ok, #state{socket = Socket}}
