@@ -57,7 +57,9 @@ init(Connection) ->
           {ssl_imp, old}, {mode, binary}],
          Connection#apns_connection.timeout) of
     {ok, Socket} ->
-      {ok, #state{socket = Socket}}
+      {ok, #state{socket = Socket}};
+    {error, Reason} ->
+      {stop, Reason}
   catch
     _:{error, Reason} ->
       {stop, Reason}
