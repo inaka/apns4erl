@@ -51,10 +51,3 @@
                        [{module, ?MODULE},
                        {line, ?LINE},
                        {msg, Msg}]})).
-
--define(USERS, 7500).
--define(FRIENDS, 100).
--define(MSGS, 15000).
--define(CLIENT_HOST, {127,0,0,1}).
--define(CLIENT_PORT, 8003).
--define(FAKE_SHOW, 666).
