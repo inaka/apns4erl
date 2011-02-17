@@ -49,7 +49,7 @@ connect() ->
 %% @spec connect(atom() | string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom() | string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name) when is_atom(Name) ->
-  connect(Name, #apns_connection{});
+  connect(Name, default_connection());
 connect(Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Connection);
 connect(CertFile) ->
