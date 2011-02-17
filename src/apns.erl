@@ -18,8 +18,8 @@
 -type conn_id() :: atom() | pid().
 -export_type([conn_id/0]).
 
-%% @type alert() = string() | {LocKey::string(), LocArgs::[string()]} | {LocKey::string(), LocArgs::[string()], ActionLocKey::string()}.
-%%        Possibly localized alert.
+%% @type alert() = string() | #loc_alert{}.
+%%        Possibly localized alert. #loc_alert{} is defined in include/localized.hrl
 -type alert() :: string() | #loc_alert{}.
 -export_type([alert/0]).
 
