@@ -1,4 +1,4 @@
-%% @doc Connection Parameters
+%% Connection Parameters
 -record(apns_connection, {ssl_seed    = "someseedstring"                  :: string(),
                           apple_host  = "gateway.sandbox.push.apple.com"  :: string(),
                           apple_port  = 2195                              :: integer(),

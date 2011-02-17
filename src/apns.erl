@@ -7,9 +7,7 @@
 -module(apns).
 -vsn('0.1').
 
-%% @headerfile "apns.hrl"
 -include("apns.hrl").
-%% @headerfile "localized.hrl"
 -include("localized.hrl").
 
 -export([start/0, stop/0]).
