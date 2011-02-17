@@ -136,7 +136,7 @@ do_build_payload([{Key,Value}|Params], Payload) ->
       do_build_payload(Params,Payload)
   end;
 do_build_payload([], Payload) ->
-  apns_mochijson2:encode(Payload).
+  apns_mochijson2:encode({Payload}).
 
 -spec send_payload(#sslsocket{}, binary(), iolist()) -> ok | {error, term()}.
 send_payload(Socket, BinToken, Payload) -> 
