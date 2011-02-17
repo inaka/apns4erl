@@ -58,9 +58,7 @@ init(Connection) ->
           {ssl_imp, old}, {mode, binary}],
          Connection#apns_connection.timeout) of
     {ok, Socket} ->
-      {ok, #state{socket = Socket}};
-    {error, Reason} ->
-      {stop, Reason}
+      {ok, #state{socket = Socket}}
   catch
     _:{error, Reason} ->
       {stop, Reason}
@@ -118,7 +116,7 @@ do_build_payload([{Key,Value}|Params], Payload) ->
                args   = Args,
                body   = Body,
                image  = Image,
-               key    = Key} ->
+               key    = LocKey} ->
       Json = {case Body of
                 none -> [];
                 Body -> [{<<"body">>, unicode:characters_to_binary(Body)}]
@@ -129,7 +127,7 @@ do_build_payload([{Key,Value}|Params], Payload) ->
                               none -> [];
                               Image -> [{<<"launch-image">>, unicode:characters_to_binary(Image)}]
                             end ++
-                [{<<"loc-key">>, unicode:characters_to_binary(Key)},
+                [{<<"loc-key">>, unicode:characters_to_binary(LocKey)},
                  {<<"loc-args">>, lists:map(fun unicode:characters_to_binary/1, Args)}]},
       do_build_payload(Params, [{atom_to_binary(Key, utf8), Json} | Payload]);
     _ ->
