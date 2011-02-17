@@ -10,6 +10,7 @@
 -behaviour(gen_server).
 
 -include("apns.hrl").
+-include("localized.hrl").
 -include_lib("ssl/src/ssl_int.hrl").
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -76,7 +77,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.socket,
   Payload = build_payload([{alert, Msg#apns_msg.alert},
                            {badge, Msg#apns_msg.badge},
-                           {sound, Msg#apns_msg.sound}]),
+                           {sound, Msg#apns_msg.sound}], Msg#apns_msg.extra),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
   case send_payload(Socket, BinToken, Payload) of
     ok ->
@@ -105,19 +106,37 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-build_payload(Params) ->
-  build_payload(Params, []).
-build_payload([{Key,Value}|Params], Payload) -> 
+build_payload(Params, Extra) ->
+  do_build_payload(Params, Extra).
+do_build_payload([{Key,Value}|Params], Payload) -> 
   case Value of
     Value when is_list(Value) ->
-      build_payload(Params, Payload ++ [lists:flatten(["\"",atom_to_list(Key),"\":\"",Value,"\""])]);
+      do_build_payload(Params, [{atom_to_binary(Key, utf8), unicode:characters_to_binary(Value)} | Payload]);
     Value when is_integer(Value) ->
-      build_payload(Params, Payload ++ [lists:flatten(["\"",atom_to_list(Key),"\":",integer_to_list(Value)])]);
+      do_build_payload(Params, [{atom_to_binary(Key, utf8), Value} | Payload]);
+    #loc_alert{action = Action,
+               args   = Args,
+               body   = Body,
+               image  = Image,
+               key    = Key} ->
+      Json = {case Body of
+                none -> [];
+                Body -> [{<<"body">>, unicode:characters_to_binary(Body)}]
+              end ++ case Action of
+                       none -> [];
+                       Action -> [{<<"action-loc-key">>, unicode:characters_to_binary(Action)}]
+                     end ++ case Image of
+                              none -> [];
+                              Image -> [{<<"launch-image">>, unicode:characters_to_binary(Image)}]
+                            end ++
+                [{<<"loc-key">>, unicode:characters_to_binary(Key)},
+                 {<<"loc-args">>, lists:map(fun unicode:characters_to_binary/1, Args)}]},
+      do_build_payload(Params, [{atom_to_binary(Key, utf8), Json} | Payload]);
     _ ->
-      build_payload(Params,Payload)
+      do_build_payload(Params,Payload)
   end;
-build_payload([], Payload) ->
-  ["{\"aps\":{", string:join(Payload,",") ,"}}"].
+do_build_payload([], Payload) ->
+  apns_mochijson2:encode(Payload).
 
 -spec send_payload(#sslsocket{}, binary(), iolist()) -> ok | {error, term()}.
 send_payload(Socket, BinToken, Payload) -> 

@@ -7,14 +7,23 @@
 -module(apns).
 -vsn('0.1').
 
+%% @headerfile "apns.hrl"
 -include("apns.hrl").
+%% @headerfile "localized.hrl"
+-include("localized.hrl").
 
 -export([start/0, stop/0]).
 -export([connect/0, connect/1, connect/2, disconnect/1]).
--export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5]).
+-export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5, send_message/6]).
 
+%% @type conn_id() = atom() | pid(). Connection Identifier.
 -type conn_id() :: atom() | pid().
 -export_type([conn_id/0]).
+
+%% @type alert() = string() | {LocKey::string(), LocArgs::[string()]} | {LocKey::string(), LocArgs::[string()], ActionLocKey::string()}.
+%%        Possibly localized alert.
+-type alert() :: string() | #loc_alert{}.
+-export_type([alert/0]).
 
 %% @doc Starts the application
 %% @spec start() -> ok | {error, {already_started, apns}}
@@ -78,27 +87,37 @@ send_badge(ConnId, DeviceToken, Badge) ->
                                  badge = Badge}).
 
 %% @doc Sends a message to Apple with just an alert
-%% @spec send_message(conn_id(), Token::string(), Alert::string()) -> ok
--spec send_message(conn_id(), string(), string()) -> ok.
+%% @spec send_message(conn_id(), Token::string(), Alert::alert()) -> ok
+-spec send_message(conn_id(), string(), alert()) -> ok.
 send_message(ConnId, DeviceToken, Alert) -> 
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  alert = Alert}).
 
 %% @doc Sends a message to Apple with an alert and a badge
-%% @spec send_message(conn_id(), Token::string(), Alert::string(), Badge::integer()) -> ok
--spec send_message(conn_id(), Token::string(), Alert::string(), Badge::integer()) -> ok.
+%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer()) -> ok
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge) -> 
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  badge = Badge,
                                  alert = Alert}).
 
 %% @doc Sends a full message to Apple
-%% @spec send_message(conn_id(), Token::string(), Alert::string(), Badge::integer(), Sound::string()) -> ok
--spec send_message(conn_id(), Token::string(), Alert::string(), Badge::integer(), Sound::string()) -> ok.
+%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string()) -> ok
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound) -> 
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
                                  sound = Sound,
+                                 device_token = DeviceToken}).
+
+%% @doc Sends a full message to Apple with extra arguments
+%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+send_message(ConnId, DeviceToken, Alert, Badge, Sound, ExtraArgs) -> 
+  send_message(ConnId, #apns_msg{alert = Alert,
+                                 badge = Badge,
+                                 sound = Sound,
+                                 extra = ExtraArgs,
                                  device_token = DeviceToken}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

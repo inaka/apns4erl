@@ -6,6 +6,7 @@
                           timeout     = 30000                             :: integer()
                           }).
 -record(apns_msg, {device_token :: string(),
-                   alert = none :: none | string(),
+                   alert = none :: none | apns:alert(),
                    badge = none :: none | integer(),
-                   sound = none :: none | string()}).
+                   sound = none :: none | string(),
+                   extra = []   :: [apns_mochijson2:json_property()]}).
