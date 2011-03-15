@@ -44,24 +44,30 @@ connect() ->
   connect(default_connection()).
 
 %% @doc Opens an unnamed connection using the given certificate file
+%%      or using the given feedback function
 %%      or using the given #apns_connection{} parameters
 %%      or the name and default configuration if a name is given
-%% @spec connect(atom() | string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
--spec connect(atom() | string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
+%% @spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+-spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name) when is_atom(Name) ->
   connect(Name, default_connection());
 connect(Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Connection);
+connect(Fun) when is_function(Fun, 1) ->
+  connect((default_connection())#apns_connection{feedback_fun = Fun});
 connect(CertFile) ->
   connect((default_connection())#apns_connection{cert_file = CertFile}).
 
 %% @doc Opens an connection named after the atom()
 %%      using the given certificate file
+%%      using the given feedback funciton
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(atom(), string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
--spec connect(atom(), string() | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
+%% @spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+-spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
+connect(Name, Fun) when is_function(Fun, 1) ->
+  connect(Name, (default_connection())#apns_connection{feedback_fun = Fun});
 connect(Name, CertFile) ->
   connect(Name, (default_connection())#apns_connection{cert_file = CertFile}).
 
