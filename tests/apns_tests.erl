@@ -4,8 +4,8 @@
 -include("localized.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include("eunit.hrl").
-%-define(DEVICE_TOKEN, "AC812B2D723F40F206204402F1C870C8D8587799370BD41D6723145C4E4EBBD7").
--define(DEVICE_TOKEN, "139D3CAB173FB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Right
+-define(DEVICE_TOKEN, "84DF7EBBCABAE9EF41AD7C3BEDB55FEA89E9F905E586E7FC395368992EF01D50").
+%-define(DEVICE_TOKEN, "139D3CAB173FB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Right for priv/cert.pem
 %-define(DEVICE_TOKEN, "139D3CAB173AB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Wrong
 
 -define(TEST_CONNECTION, 'test-connection').
@@ -102,4 +102,4 @@ log_error(MsgId, Status) ->
   error_logger:error_msg("Error on msg ~p: ~p~n", [MsgId, Status]).
 
 log_feedback(Token) ->
-  error_logger:warning_msg("Device with token ~s removed the app~n", [Token]).
+  error_logger:warning_msg("Device with token ~p removed the app~n", [Token]).
