@@ -5,7 +5,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("eunit.hrl").
 %-define(DEVICE_TOKEN, "AC812B2D723F40F206204402F1C870C8D8587799370BD41D6723145C4E4EBBD7").
--define(DEVICE_TOKEN, "139D3CAB173FB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994").
+-define(DEVICE_TOKEN, "139D3CAB173FB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Right
+%-define(DEVICE_TOKEN, "139D3CAB173AB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Wrong
 
 -define(TEST_CONNECTION, 'test-connection').
 
@@ -37,7 +38,7 @@ apns_test_() ->
 %%% Tests
 run() ->
   ?assertEqual(ok, apns:start()),
-  {ok, Pid} = apns:connect(?TEST_CONNECTION),
+  {ok, Pid} = apns:connect(?TEST_CONNECTION, fun log_error/2, fun log_feedback/1),
   Ref = erlang:monitor(process, Pid),
   ?assertEqual(ok, apns:send_message(?TEST_CONNECTION, ?DEVICE_TOKEN, "Test Alert", random:uniform(10), "chime")),
   receive
@@ -96,3 +97,9 @@ run() ->
     after 1000 ->
       ok
   end.
+
+log_error(MsgId, Status) ->
+  error_logger:error_msg("Error on msg ~p: ~p~n", [MsgId, Status]).
+
+log_feedback(Token) ->
+  error_logger:warning_msg("Device with token ~s removed the app~n", [Token]).

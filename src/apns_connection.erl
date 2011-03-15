@@ -16,10 +16,11 @@
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
 
--record(state, {out_socket    :: #sslsocket{},
-                in_socket     :: #sslsocket{},
-                connection    :: #apns_connection{},
-                buffer = <<>> :: binary()}).
+-record(state, {out_socket        :: #sslsocket{},
+                in_socket         :: #sslsocket{},
+                connection        :: #apns_connection{},
+                in_buffer = <<>>  :: binary(),
+                out_buffer = <<>> :: binary()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -96,7 +97,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
                            {badge, Msg#apns_msg.badge},
                            {sound, Msg#apns_msg.sound}], Msg#apns_msg.extra),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
-  case send_payload(Socket, BinToken, Payload) of
+  case send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload) of
     ok ->
       {noreply, State};
     {error, Reason} ->
@@ -106,11 +107,38 @@ handle_cast(stop, State) ->
   {stop, normal, State}.
 
 %% @hidden
--spec handle_info({tcp, #sslsocket{}, binary()} | {ssl_closed, #sslsocket{}} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
-handle_info({tcp, SslSocket, Data}, State = #state{in_socket  = SslSocket,
+-spec handle_info({ssl, #sslsocket{}, binary()} | {ssl_closed, #sslsocket{}} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
+handle_info({ssl, SslSocket, Data}, State = #state{out_socket = SslSocket,
+                                                   connection =
+                                                     #apns_connection{error_fun = Error},
+                                                   out_buffer = CurrentBuffer}) ->
+  case <<CurrentBuffer/binary, Data/binary>> of
+    <<Command:1/unit:8, StatusCode:1/unit:8, MsgId:4/binary, Rest/binary>> ->
+      case Command of
+        8 -> %% Error
+          Status = parse_status(StatusCode),
+          try Error(MsgId, Status) of
+            stop -> throw({stop, {msg_error, MsgId, Status}, State});
+            _ -> noop
+          catch
+            _:ErrorResult ->
+              error_logger:error_msg("Error trying to inform error (~p) msg ~p:~n\t~p~n",
+                                     [Status, MsgId, ErrorResult])
+          end,
+          case erlang:size(Rest) of
+            0 -> {noreply, State#state{out_buffer = <<>>}}; %% It was a whole package
+            _ -> handle_info({ssl, SslSocket, Rest}, State#state{out_buffer = <<>>})
+          end;
+        Command ->
+          throw({stop, {unknown_command, Command}, State})
+      end;
+    NextBuffer -> %% We need to wait for the rest of the message
+      {noreply, State#state{out_buffer = NextBuffer}}
+  end;  
+handle_info({ssl, SslSocket, Data}, State = #state{in_socket  = SslSocket,
                                                    connection =
                                                      #apns_connection{feedback_fun = Feedback},
-                                                   buffer     = CurrentBuffer
+                                                   in_buffer  = CurrentBuffer
                                                   }) ->
   case <<CurrentBuffer/binary, Data/binary>> of
     <<_TimeT:4/big-unsigned-integer-unit:8,
@@ -123,11 +151,11 @@ handle_info({tcp, SslSocket, Data}, State = #state{in_socket  = SslSocket,
           error_logger:error_msg("Error trying to inform feedback token ~p:~n\t~p~n", [Token, Error])
       end,
       case erlang:size(Rest) of
-        0 -> {noreply, State#state{buffer = <<>>}}; %% It was a whole package
-        _ -> handle_info({tcp, SslSocket, Rest}, State#state{buffer = <<>>})
+        0 -> {noreply, State#state{in_buffer = <<>>}}; %% It was a whole package
+        _ -> handle_info({ssl, SslSocket, Rest}, State#state{in_buffer = <<>>})
       end;
     NextBuffer -> %% We need to wait for the rest of the message
-      {noreply, State#state{buffer = NextBuffer}}
+      {noreply, State#state{in_buffer = NextBuffer}}
   end;
 handle_info({ssl_closed, SslSocket}, State = #state{in_socket = SslSocket,
                                                     connection= Connection}) ->
@@ -196,12 +224,12 @@ do_build_payload([{Key,Value}|Params], Payload) ->
 do_build_payload([], Payload) ->
   apns_mochijson2:encode({Payload}).
 
--spec send_payload(#sslsocket{}, binary(), iolist()) -> ok | {error, term()}.
-send_payload(Socket, BinToken, Payload) -> 
+-spec send_payload(#sslsocket{}, binary(), non_neg_integer(), binary(), iolist()) -> ok | {error, term()}.
+send_payload(Socket, MsgId, Expiry, BinToken, Payload) -> 
     BinPayload = list_to_binary(Payload),
     PayloadLength = erlang:size(BinPayload),
-    Packet = [<<0:8, 32:16/big,
-                %%16#ac812b2d723f40f206204402f1c870c8d8587799370bd41d6723145c4e4ebbd7:256/big,
+    Packet = [<<1:8, MsgId/binary, Expiry:4/big-unsigned-integer-unit:8,
+                32:16/big,
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
@@ -215,3 +243,14 @@ hexstr_to_bin([], Acc) ->
 hexstr_to_bin([X,Y|T], Acc) ->
   {ok, [V], []} = io_lib:fread("~16u", [X,Y]),
   hexstr_to_bin(T, [V | Acc]).
+
+parse_status(0) -> no_errors;
+parse_status(1) -> processing_error;
+parse_status(2) -> missing_token;
+parse_status(3) -> missing_topic;
+parse_status(4) -> missing_payload;
+parse_status(5) -> missing_token_size;
+parse_status(6) -> missing_topic_size;
+parse_status(7) -> missing_payload_size;
+parse_status(8) -> invalid_token;
+parse_status(_) -> unknown.

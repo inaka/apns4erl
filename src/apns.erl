@@ -11,8 +11,40 @@
 -include("localized.hrl").
 
 -export([start/0, stop/0]).
--export([connect/0, connect/1, connect/2, disconnect/1]).
+-export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5, send_message/6]).
+-export([message_id/0]).
+
+%% @type msg() = #apns_msg{id           = binary(),
+%%                         expiry       = non_neg_integer(),
+%%                         device_token = string(),
+%%                         alert        = none | apns:alert(),
+%%                         badge        = none | integer(),
+%%                         sound        = none | string(),
+%%                         extra        = [apns_mochijson2:json_property()]}. A Message to send.
+%% To understand each field, check <a href="http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingWIthAPS/CommunicatingWIthAPS.html">Apple docs</a>
+-type msg() :: #apns_msg{}.
+
+%% @type connection() = #apns_connection{ssl_seed          = string(),
+%%                                       apple_host        = string(),
+%%                                       apple_port        = integer(),
+%%                                       cert_file         = string(),
+%%                                       timeout           = integer(),
+%%                                       error_fun         = fun((binary(), apns:status()) -> stop | any()),
+%%                                       feedback_host     = string(),
+%%                                       feedback_port     = integer(),
+%%                                       feedback_fun      = fun((string()) -> any()),
+%%                                       feedback_timeout  = pos_integer()
+%%                                       }
+-type connection() :: #apns_connection{}.
+
+%% @type status() = no_errors | processing_error | missing_token | missing_topic | missing_payload | 
+%%                  missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
+%%                  unknown.  Status report as received from Apple
+-type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload | 
+                  missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
+                  unknown.
+-export_type([status/0, msg/0, connection/0]).
 
 %% @type conn_id() = atom() | pid(). Connection Identifier.
 -type conn_id() :: atom() | pid().
@@ -44,10 +76,10 @@ connect() ->
   connect(default_connection()).
 
 %% @doc Opens an unnamed connection using the given certificate file
-%%      or using the given feedback function
+%%      or using the given feedback or error function
 %%      or using the given #apns_connection{} parameters
 %%      or the name and default configuration if a name is given
-%% @spec connect(atom() | string() | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+%% @spec connect(atom() | string() | fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name) when is_atom(Name) ->
   connect(Name, default_connection());
@@ -55,21 +87,33 @@ connect(Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Connection);
 connect(Fun) when is_function(Fun, 1) ->
   connect((default_connection())#apns_connection{feedback_fun = Fun});
+connect(Fun) when is_function(Fun, 2) ->
+  connect((default_connection())#apns_connection{error_fun = Fun});
 connect(CertFile) ->
   connect((default_connection())#apns_connection{cert_file = CertFile}).
 
 %% @doc Opens an connection named after the atom()
 %%      using the given certificate file
-%%      using the given feedback funciton
+%%      using the given feedback or error function
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(atom(), string() | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+%% @spec connect(atom(), string() | fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
 connect(Name, Fun) when is_function(Fun, 1) ->
   connect(Name, (default_connection())#apns_connection{feedback_fun = Fun});
+connect(Name, Fun) when is_function(Fun, 2) ->
+  connect(Name, (default_connection())#apns_connection{error_fun = Fun});
 connect(Name, CertFile) ->
   connect(Name, (default_connection())#apns_connection{cert_file = CertFile}).
+
+%% @doc Opens an connection named after the atom()
+%%      using the given feedback and error functions
+%% @spec connect(atom(), fun((binary(), apns:status()) -> stop | any()), fun((string()) -> any())) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+-spec connect(atom(), fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
+connect(Name, ErrorFun, FeedbackFun) ->
+  connect(Name, (default_connection())#apns_connection{error_fun    = ErrorFun,
+                                                       feedback_fun = FeedbackFun}).
 
 %% @doc Closes an open connection
 %% @spec disconnect(conn_id()) -> ok
@@ -123,6 +167,16 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, ExtraArgs) ->
                                  sound = Sound,
                                  extra = ExtraArgs,
                                  device_token = DeviceToken}).
+
+%% @doc  Generates an "unique" and valid message Id
+%% @spec message_id() -> binary()
+-spec message_id() -> binary().
+message_id() ->
+  {_, _, MicroSecs} = erlang:now(),
+  Secs = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
+  First = Secs rem 65536,
+  Last = MicroSecs rem 65536,
+  <<First:2/unsigned-integer-unit:8, Last:2/unsigned-integer-unit:8>>.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 get_env(K, Def) ->
