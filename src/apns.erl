@@ -47,7 +47,7 @@ connect() ->
 %%      or using the given feedback function
 %%      or using the given #apns_connection{} parameters
 %%      or the name and default configuration if a name is given
-%% @spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+%% @spec connect(atom() | string() | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name) when is_atom(Name) ->
   connect(Name, default_connection());
@@ -62,7 +62,7 @@ connect(CertFile) ->
 %%      using the given certificate file
 %%      using the given feedback funciton
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+%% @spec connect(atom(), string() | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
