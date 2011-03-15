@@ -192,6 +192,10 @@ default_connection() ->
                               cert_file       = get_env(cert_file,        DefaultConn#apns_connection.cert_file),
                               ssl_seed        = get_env(ssl_seed,         DefaultConn#apns_connection.ssl_seed),
                               timeout         = get_env(timeout,          DefaultConn#apns_connection.timeout),
+                              error_fun       = case get_env(error_fun,   DefaultConn#apns_connection.error_fun) of
+                                                  {M, F} -> fun(I, S) -> M:F(I, S) end;
+                                                  Other -> Other
+                                                end,
                               feedback_timeout= get_env(feedback_timeout, DefaultConn#apns_connection.feedback_timeout),
                               feedback_fun    = case get_env(feedback_fun,DefaultConn#apns_connection.feedback_fun) of
                                                   {M, F} -> fun(T) -> M:F(T) end;
