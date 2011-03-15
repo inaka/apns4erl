@@ -1,7 +1,0 @@
-** this is the overview.doc file for the application 'erfb' **
-@author Fernando Benavides <fernando.benavides@inakanetworks.com>
-@copyright 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
-@version 0.1
-@title Apple Push Notification Server for Erlang 
-@reference <a href="http://github.com/novamens/erfb">Github Repository</a>
-@reference <a href="http://en.wikipedia.org/wiki/Apple_Push_Notification_Service">APNS</a>
