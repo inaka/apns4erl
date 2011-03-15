@@ -9,6 +9,19 @@
 
 -define(TEST_CONNECTION, 'test-connection').
 
+-export([main/0]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% EXTERNAL FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec main() -> no_return().
+main() ->
+  _ = application:load(apns),
+  case eunit:test(apns, [verbose]) of
+    ok -> halt(0);
+    _ -> halt(1)
+  end.
+
 -spec test() -> any().
 -spec apns_test_() -> {setup, fun(() -> ok), fun((_) -> ok), {timeout, 120000, fun(() -> any())}}.
 apns_test_() ->
