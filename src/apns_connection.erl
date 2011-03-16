@@ -227,7 +227,9 @@ do_build_payload([], Payload) ->
 -spec send_payload(#sslsocket{}, binary(), non_neg_integer(), binary(), iolist()) -> ok | {error, term()}.
 send_payload(Socket, MsgId, Expiry, BinToken, Payload) -> 
     BinPayload = list_to_binary(Payload),
-    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n", [MsgId, Expiry, BinPayload]),
+    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n",
+                          [MsgId, calendar:gregorian_seconds_to_datetime(Expiry + 62167219200),
+                           BinPayload]),
     PayloadLength = erlang:size(BinPayload),
     Packet = [<<1:8, MsgId/binary, Expiry:4/big-unsigned-integer-unit:8,
                 32:16/big,
