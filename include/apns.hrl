@@ -10,10 +10,10 @@
                           feedback_fun      = fun erlang:display/1                  :: fun((string()) -> _),
                           feedback_timeout  = 30*60*1000                            :: pos_integer()
                           }).
--record(apns_msg, {id = apns:message_id()   :: binary(),
-                   expiry = apns:expiry(60) :: non_neg_integer(), %% default = 1 minute
-                   device_token             :: string(),
-                   alert = none             :: none | apns:alert(),
-                   badge = none             :: none | integer(),
-                   sound = none             :: none | string(),
-                   extra = []               :: [apns_mochijson2:json_property()]}).
+-record(apns_msg, {id = apns:message_id()       :: binary(),
+                   expiry = apns:expiry(86400)  :: non_neg_integer(), %% default = 1 day
+                   device_token                 :: string(),
+                   alert = none                 :: none | apns:alert(),
+                   badge = none                 :: none | integer(),
+                   sound = none                 :: none | string(),
+                   extra = []                   :: [apns_mochijson2:json_property()]}).
