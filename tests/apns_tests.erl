@@ -4,7 +4,7 @@
 -include("localized.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include("eunit.hrl").
--define(DEVICE_TOKEN, "84DF7EBBCABAE9EF41AD7C3BEDB55FEA89E9F905E586E7FC395368992EF01D50").
+-define(DEVICE_TOKEN, "7F0CD8917A1D08BAE2F49666292E2DC7B8BDEA8D8C7673282E5CA0741D59F276").
 %-define(DEVICE_TOKEN, "139D3CAB173FB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Right for priv/cert.pem
 %-define(DEVICE_TOKEN, "139D3CAB173AB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994"). %% Wrong
 
@@ -73,7 +73,9 @@ run() ->
     after 1000 ->
       ok
   end,
-  ?assertEqual(ok, apns:send_message(?TEST_CONNECTION, ?DEVICE_TOKEN, "Test Alert", random:uniform(10), "chime", [{<<"acme1">>, 1}])),
+  ?assertEqual(ok, apns:send_message(?TEST_CONNECTION, ?DEVICE_TOKEN, "Test Alert",
+                                     random:uniform(10), "chime",
+                                     apns:expiry(120), [{<<"acme1">>, 1}])),
   receive
     {'DOWN', Ref, _, _, _} = DownMsg4 ->
       ?fail(DownMsg4);
@@ -87,8 +89,9 @@ run() ->
                                                                                  body   = "Localized Body",
                                                                                  image  = none,
                                                                                  key    = "KEY"},
-                                     random:uniform(10), "chime", [{<<"acme2">>, <<"x">>},
-                                                                   {<<"acme3">>, {[{<<"acme4">>, false}]}}])),
+                                     random:uniform(10), "chime",
+                                     apns:expiry(120), [{<<"acme2">>, <<"x">>},
+                                                        {<<"acme3">>, {[{<<"acme4">>, false}]}}])),
   receive
     {'DOWN', Ref, _, _, _} = DownMsg5 ->
       ?fail(DownMsg5);

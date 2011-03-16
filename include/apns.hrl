@@ -11,7 +11,7 @@
                           feedback_timeout  = 30*60*1000                            :: pos_integer()
                           }).
 -record(apns_msg, {id = apns:message_id()   :: binary(),
-                   expiry = 0               :: non_neg_integer(),
+                   expiry = apns:expiry(60) :: non_neg_integer(), %% default = 1 minute
                    device_token             :: string(),
                    alert = none             :: none | apns:alert(),
                    badge = none             :: none | integer(),

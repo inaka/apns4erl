@@ -10,10 +10,13 @@
 -include("apns.hrl").
 -include("localized.hrl").
 
+-define(EPOCH, 62167219200).
+
 -export([start/0, stop/0]).
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
--export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5, send_message/6]).
--export([message_id/0]).
+-export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
+         send_message/6, send_message/7]).
+-export([message_id/0, expiry/1]).
 
 %% @type msg() = #apns_msg{id           = binary(),
 %%                         expiry       = non_neg_integer(),
@@ -158,14 +161,25 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
                                  sound = Sound,
                                  device_token = DeviceToken}).
 
-%% @doc Sends a full message to Apple with extra arguments
-%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok
--spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
-send_message(ConnId, DeviceToken, Alert, Badge, Sound, ExtraArgs) -> 
+%% @doc Sends a full message to Apple (complete with expiry)
+%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -> ok
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -> ok.
+send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
+  send_message(ConnId, #apns_msg{alert = Alert,
+                                 badge = Badge,
+                                 sound = Sound,
+                                 expiry= Expiry,
+                                 device_token = DeviceToken}).
+
+%% @doc Sends a full message to Apple with expiry and extra arguments
+%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) -> 
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
                                  sound = Sound,
                                  extra = ExtraArgs,
+                                 expiry= Expiry,
                                  device_token = DeviceToken}).
 
 %% @doc  Generates an "unique" and valid message Id
@@ -177,6 +191,20 @@ message_id() ->
   First = Secs rem 65536,
   Last = MicroSecs rem 65536,
   <<First:2/unsigned-integer-unit:8, Last:2/unsigned-integer-unit:8>>.
+
+%% @doc  Generates a valid expiry value for messages.
+%%       If called with <code>none</code> as the parameter, it will return a <a>no-expire</a> value.
+%%       If called with a datetime as the parameter, it will convert it to a valid expiry value.
+%%       If called with an integer, it will add that many seconds to current time and return a valid
+%%        expiry value for that date.
+%% @spec expiry(none | DateTime | pos_integer()) -> non_neg_integer()
+%%        DateTime = {{pos_integer(),pos_integer(),pos_integer()}, {non_neg_integer(),non_neg_integer(),non_neg_integer()}}
+-spec expiry(none | {{1970..9999,1..12,1..31},{0..24,0..60,0..60}} | pos_integer()) -> non_neg_integer().
+expiry(none) -> 0;
+expiry(Secs) when is_integer(Secs) ->
+  calendar:datetime_to_gregorian_seconds(calendar:universal_time()) - ?EPOCH + Secs;
+expiry(Date) ->
+  calendar:datetime_to_gregorian_seconds(Date) - ?EPOCH.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 get_env(K, Def) ->
