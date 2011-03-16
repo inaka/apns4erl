@@ -32,6 +32,7 @@
 %%                                       apple_host        = string(),
 %%                                       apple_port        = integer(),
 %%                                       cert_file         = string(),
+%%                                       key_file          = undefined | string(),
 %%                                       timeout           = integer(),
 %%                                       error_fun         = fun((binary(), apns:status()) -> stop | any()),
 %%                                       feedback_host     = string(),
@@ -78,11 +79,10 @@ stop() ->
 connect() ->
   connect(default_connection()).
 
-%% @doc Opens an unnamed connection using the given certificate file
-%%      or using the given feedback or error function
+%% @doc Opens an unnamed connection using the given feedback or error function
 %%      or using the given #apns_connection{} parameters
 %%      or the name and default configuration if a name is given
-%% @spec connect(atom() | string() | fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+%% @spec connect(atom() | fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name) when is_atom(Name) ->
   connect(Name, default_connection());
@@ -91,24 +91,19 @@ connect(Connection) when is_record(Connection, apns_connection) ->
 connect(Fun) when is_function(Fun, 1) ->
   connect((default_connection())#apns_connection{feedback_fun = Fun});
 connect(Fun) when is_function(Fun, 2) ->
-  connect((default_connection())#apns_connection{error_fun = Fun});
-connect(CertFile) ->
-  connect((default_connection())#apns_connection{cert_file = CertFile}).
+  connect((default_connection())#apns_connection{error_fun = Fun}).
 
 %% @doc Opens an connection named after the atom()
-%%      using the given certificate file
 %%      using the given feedback or error function
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(atom(), string() | fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
+%% @spec connect(atom(), fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
 connect(Name, Fun) when is_function(Fun, 1) ->
   connect(Name, (default_connection())#apns_connection{feedback_fun = Fun});
 connect(Name, Fun) when is_function(Fun, 2) ->
-  connect(Name, (default_connection())#apns_connection{error_fun = Fun});
-connect(Name, CertFile) ->
-  connect(Name, (default_connection())#apns_connection{cert_file = CertFile}).
+  connect(Name, (default_connection())#apns_connection{error_fun = Fun}).
 
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback and error functions
@@ -217,6 +212,7 @@ default_connection() ->
   DefaultConn = #apns_connection{},
   DefaultConn#apns_connection{apple_host      = get_env(apple_host,       DefaultConn#apns_connection.apple_host),
                               apple_port      = get_env(apple_port,       DefaultConn#apns_connection.apple_port),
+                              key_file        = get_env(key_file,         DefaultConn#apns_connection.key_file),
                               cert_file       = get_env(cert_file,        DefaultConn#apns_connection.cert_file),
                               ssl_seed        = get_env(ssl_seed,         DefaultConn#apns_connection.ssl_seed),
                               timeout         = get_env(timeout,          DefaultConn#apns_connection.timeout),
