@@ -246,9 +246,8 @@ send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
-%% <<"\x00\x00 \x13\x9D<\xAB\x17?\xB20\xB9~J\x19\xD2\x88\xE3\xFB\xCDK\x03\x7F\x9B\x18\xAB\xA1\x7F\xE4\xCD\xE7 \x85\xE9\x94\x00<{\"aps\":{\"alert\":\"Hey, dude!\",\"badge\":1},\"custom_data\":\"asd\"}">>
-    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
-                          [MsgId, Expiry, BinPayload, Packet]),
+    %%error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
+      %%                    [MsgId, Expiry, BinPayload, Packet]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
