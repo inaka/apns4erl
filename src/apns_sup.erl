@@ -1,4 +1,5 @@
 %%%-------------------------------------------------------------------
+%%% @hidden
 %%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
 %%% @copyright (C) 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
 %%% @doc apns4erl main supervisor

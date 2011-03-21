@@ -18,44 +18,14 @@
          send_message/6, send_message/7]).
 -export([message_id/0, expiry/1]).
 
-%% @type msg() = #apns_msg{id           = binary(),
-%%                         expiry       = non_neg_integer(),
-%%                         device_token = string(),
-%%                         alert        = none | apns:alert(),
-%%                         badge        = none | integer(),
-%%                         sound        = none | string(),
-%%                         extra        = [apns_mochijson2:json_property()]}. A Message to send.
-%% To understand each field, check <a href="http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingWIthAPS/CommunicatingWIthAPS.html">Apple docs</a>
--type msg() :: #apns_msg{}.
-
-%% @type connection() = #apns_connection{ssl_seed          = string(),
-%%                                       apple_host        = string(),
-%%                                       apple_port        = integer(),
-%%                                       cert_file         = string(),
-%%                                       key_file          = undefined | string(),
-%%                                       timeout           = integer(),
-%%                                       error_fun         = fun((binary(), apns:status()) -> stop | any()),
-%%                                       feedback_host     = string(),
-%%                                       feedback_port     = integer(),
-%%                                       feedback_fun      = fun((string()) -> any()),
-%%                                       feedback_timeout  = pos_integer()
-%%                                       }
--type connection() :: #apns_connection{}.
-
-%% @type status() = no_errors | processing_error | missing_token | missing_topic | missing_payload | 
-%%                  missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
-%%                  unknown.  Status report as received from Apple
 -type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload | 
                   missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
                   unknown.
--export_type([status/0, msg/0, connection/0]).
+-export_type([status/0]).
 
-%% @type conn_id() = atom() | pid(). Connection Identifier.
 -type conn_id() :: atom() | pid().
 -export_type([conn_id/0]).
 
-%% @type alert() = string() | #loc_alert{}.
-%%        Possibly localized alert. #loc_alert{} is defined in include/localized.hrl
 -type alert() :: string() | #loc_alert{}.
 -export_type([alert/0]).
 

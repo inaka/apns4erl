@@ -43,6 +43,7 @@ stop(ConnId) ->
 -spec start_link(atom(), #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}}.
 start_link(Name, Connection) ->
   gen_server:start_link({local, Name}, ?MODULE, Connection, []).
+%% @hidden
 -spec start_link(#apns_connection{}) -> {ok, pid()}.
 start_link(Connection) ->
   gen_server:start_link(?MODULE, Connection, []).
