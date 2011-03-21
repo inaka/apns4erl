@@ -22,52 +22,36 @@ wrapper and it only knows how to decode UTF-8 (and ASCII).</p>
  
 <h2><a name="types">Data Types</a></h2>
 
-<h3 class="typedecl"><a name="type-decoder_option">decoder_option()</a></h3>
-<p><tt>decoder_option() = {object_hook, <a href="#type-hook">hook()</a>}</tt></p>
-
-
-<h3 class="typedecl"><a name="type-encoder_option">encoder_option()</a></h3>
-<p><tt>encoder_option() = {handler, <a href="#type-handler">handler()</a>} | {utf8, <a href="#type-boolean">boolean()</a>}</tt></p>
-
-
 <h3 class="typedecl"><a name="type-json_array">json_array()</a></h3>
 <p><tt>json_array() = [<a href="#type-json_term">json_term()</a>]</tt></p>
-<p>JSON Arrays</p>
+
 
 <h3 class="typedecl"><a name="type-json_boolean">json_boolean()</a></h3>
-<p><tt>json_boolean() = <a href="#type-boolean">boolean()</a></tt></p>
-<p>JSON Booleans</p>
+<p><tt>json_boolean() = boolean()</tt></p>
+
 
 <h3 class="typedecl"><a name="type-json_null">json_null()</a></h3>
 <p><tt>json_null() = null</tt></p>
-<p>JSON Null object</p>
+
 
 <h3 class="typedecl"><a name="type-json_number">json_number()</a></h3>
 <p><tt>json_number() = integer() | float()</tt></p>
-<p>JSON Numbers</p>
+
 
 <h3 class="typedecl"><a name="type-json_object">json_object()</a></h3>
 <p><tt>json_object() = {[<a href="#type-json_property">json_property()</a>]}</tt></p>
-<p>JSON Objects</p>
+
 
 <h3 class="typedecl"><a name="type-json_property">json_property()</a></h3>
 <p><tt>json_property() = {<a href="#type-json_string">json_string()</a>, <a href="#type-json_term">json_term()</a>}</tt></p>
-<p>JSON Object properties</p>
+
 
 <h3 class="typedecl"><a name="type-json_string">json_string()</a></h3>
 <p><tt>json_string() = atom() | binary()</tt></p>
-<p>JSON Strings</p>
+
 
 <h3 class="typedecl"><a name="type-json_term">json_term()</a></h3>
 <p><tt>json_term() = <a href="#type-json_string">json_string()</a> | <a href="#type-json_number">json_number()</a> | <a href="#type-json_array">json_array()</a> | <a href="#type-json_object">json_object()</a> | <a href="#type-json_null">json_null()</a> | <a href="#type-json_boolean">json_boolean()</a></tt></p>
-<p>JSON Terms</p>
-
-<h3 class="typedecl"><a name="type-key_val">key_val()</a></h3>
-<p><tt>key_val() = list() | binary()</tt></p>
-
-
-<h3 class="typedecl"><a name="type-key_val">key_val()</a></h3>
-<p><tt>key_val() = list() | binary()</tt></p>
 
 
 <h2><a name="index">Function Index</a></h2>
@@ -84,38 +68,38 @@ wrapper and it only knows how to decode UTF-8 (and ASCII).</p>
 
 <h3 class="function"><a name="decode-1">decode/1</a></h3>
 <div class="spec">
-<p><tt>decode(S::<a href="#type-iolist">iolist()</a>) -&gt; <a href="#type-json_term">json_term()</a></tt></p>
+<p><tt>decode(S::iolist()) -&gt; <a href="#type-json_term">json_term()</a></tt><br></p>
 </div><p>Decode the given iolist to Erlang terms.</p>
 
 <h3 class="function"><a name="decoder-1">decoder/1</a></h3>
 <div class="spec">
-<p><tt>decoder(Options::[<a href="#type-decoder_option">decoder_option()</a>]) -&gt; function()</tt></p>
+<p><tt>decoder(Options::[<a href="#type-decoder_option">decoder_option()</a>]) -&gt; function()</tt><br></p>
 </div><p>Create a decoder/1 with the given options.</p>
 
 <h3 class="function"><a name="encode-1">encode/1</a></h3>
 <div class="spec">
-<p><tt>encode(Any::<a href="#type-json_term">json_term()</a>) -&gt; <a href="#type-iolist">iolist()</a></tt></p>
+<p><tt>encode(Any::<a href="#type-json_term">json_term()</a>) -&gt; iolist()</tt><br></p>
 </div><p>Encode the given as JSON to an iolist.</p>
 
 <h3 class="function"><a name="encoder-1">encoder/1</a></h3>
 <div class="spec">
-<p><tt>encoder(Options::[<a href="#type-encoder_option">encoder_option()</a>]) -&gt; function()</tt></p>
+<p><tt>encoder(Options::[<a href="#type-encoder_option">encoder_option()</a>]) -&gt; function()</tt><br></p>
 </div><p>Create an encoder/1 with the given options.</p>
 
 <h3 class="function"><a name="get_value-2">get_value/2</a></h3>
 <div class="spec">
-<p><tt>get_value(Key::<a href="#type-key_val">key_val()</a>, JsonObj::<a href="#type-json_object">json_object()</a>) -&gt; term()</tt></p>
+<p><tt>get_value(Key::<a href="#type-key_val">key_val()</a>, JsonObj::<a href="#type-json_object">json_object()</a>) -&gt; term()</tt><br></p>
 </div><p>Equivalent to <a href="#get_value-3"><tt>get_value(Key, JsonObj, undefined)</tt></a>.</p>
 <p>Returns the value of a simple key/value property in json object.</p>
 
 <h3 class="function"><a name="get_value-3">get_value/3</a></h3>
 <div class="spec">
-<p><tt>get_value(Key::<a href="#type-key_val">key_val()</a>, JsonObj::<a href="#type-json_object">json_object()</a>, Default::term()) -&gt; term()</tt></p>
+<p><tt>get_value(Key::<a href="#type-key_val">key_val()</a>, JsonObj::<a href="#type-json_object">json_object()</a>, Default::term()) -&gt; term()</tt><br></p>
 </div><p>Returns the value of a simple key/value property in json object
   function from erlang_couchdb</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Feb 17 2011, 16:37:25.</i></p>
+<p><i>Generated by EDoc, Mar 21 2011, 12:14:26.</i></p>
 </body>
 </html>

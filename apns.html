@@ -19,24 +19,15 @@
 
 <h3 class="typedecl"><a name="type-alert">alert()</a></h3>
 <p><tt>alert() = string() | #loc_alert{}</tt></p>
-<p>Possibly localized alert. #loc_alert{} is defined in include/localized.hrl</p>
+
 
 <h3 class="typedecl"><a name="type-conn_id">conn_id()</a></h3>
 <p><tt>conn_id() = atom() | pid()</tt></p>
-<p>Connection Identifier.</p>
 
-<h3 class="typedecl"><a name="type-connection">connection()</a></h3>
-<p><tt>connection() = #apns_connection{ssl_seed = string(), apple_host = string(), apple_port = integer(), cert_file = string(), key_file = undefined | string(), timeout = integer(), error_fun = <a href="#type-fun">'fun'((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop | any())</a>, feedback_host = string(), feedback_port = integer(), feedback_fun = <a href="#type-fun">'fun'((string()) -&gt; any())</a>, feedback_timeout = <a href="#type-pos_integer">pos_integer()</a>}</tt></p>
-
-
-<h3 class="typedecl"><a name="type-msg">msg()</a></h3>
-<p><tt>msg() = #apns_msg{id = binary(), expiry = <a href="#type-non_neg_integer">non_neg_integer()</a>, device_token = string(), alert = none | <a href="apns.html#type-alert">apns:alert()</a>, badge = none | integer(), sound = none | string(), extra = [<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]}</tt></p>
-<p>A Message to send.
-  To understand each field, check <a href="http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingWIthAPS/CommunicatingWIthAPS.html">Apple docs</a></p>
 
 <h3 class="typedecl"><a name="type-status">status()</a></h3>
 <p><tt>status() = no_errors | processing_error | missing_token | missing_topic | missing_payload | missing_token_size | missing_topic_size | missing_payload_size | invalid_token | unknown</tt></p>
-<p>Status report as received from Apple</p>
+
 
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#connect-0">connect/0</a></td><td>Opens an unnamed connection using the default parameters.</td></tr>
@@ -66,39 +57,38 @@
 
 <h3 class="function"><a name="connect-0">connect/0</a></h3>
 <div class="spec">
-<p><tt>connect() -&gt; {ok, pid()} | {error, Reason::term()}</tt></p>
+<p><tt>connect() -&gt; {ok, pid()} | {error, Reason::term()}</tt><br></p>
 </div><p>Opens an unnamed connection using the default parameters</p>
 
 <h3 class="function"><a name="connect-1">connect/1</a></h3>
 <div class="spec">
-<p><tt>connect(Name::atom() | <a href="#type-fun">'fun'((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop | any())</a> | <a href="#type-fun">'fun'((string()) -&gt; any())</a> | #apns_connection{}) -&gt; {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}</tt></p>
+<p><tt>connect(Name::atom() | <a href="#type-fun">'fun'</a>(fun((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop) | any()) | fun((string()) -&gt; any()) | #apns_connection{}) -&gt; {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}</tt><br></p>
 </div><p>Opens an unnamed connection using the given feedback or error function
        or using the given #apns_connection{} parameters
        or the name and default configuration if a name is given</p>
 
 <h3 class="function"><a name="connect-2">connect/2</a></h3>
 <div class="spec">
-<p><tt>connect(Name::atom(), Connection::<a href="#type-fun">'fun'((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop | any())</a> | <a href="#type-fun">'fun'((string()) -&gt; any())</a> | #apns_connection{}) -&gt; {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}</tt></p>
+<p><tt>connect(Name::atom(), Connection::<a href="#type-fun">'fun'</a>(fun((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop) | any()) | fun((string()) -&gt; any()) | #apns_connection{}) -&gt; {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}</tt><br></p>
 </div><p>Opens an connection named after the atom()
        using the given feedback or error function
        or using the given #apns_connection{} parameters</p>
 
 <h3 class="function"><a name="connect-3">connect/3</a></h3>
 <div class="spec">
-<p><tt>connect(Name::atom(), ErrorFun::<a href="#type-fun">'fun'((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop | any())</a>, FeedbackFun::<a href="#type-fun">'fun'((string()) -&gt; any())</a>) -&gt; {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}</tt></p>
+<p><tt>connect(Name::atom(), ErrorFun::<a href="#type-fun">'fun'</a>(fun((binary(), <a href="apns.html#type-status">apns:status()</a>) -&gt; stop) | any()), FeedbackFun::fun((string()) -&gt; any())) -&gt; {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}</tt><br></p>
 </div><p>Opens an connection named after the atom()
        using the given feedback and error functions</p>
 
 <h3 class="function"><a name="disconnect-1">disconnect/1</a></h3>
 <div class="spec">
-<p><tt>disconnect(ConnId::<a href="#type-conn_id">conn_id()</a>) -&gt; ok</tt></p>
+<p><tt>disconnect(ConnId::<a href="#type-conn_id">conn_id()</a>) -&gt; ok</tt><br></p>
 </div><p>Closes an open connection</p>
 
 <h3 class="function"><a name="expiry-1">expiry/1</a></h3>
 <div class="spec">
-<p><tt>expiry(Secs::none | DateTime | <a href="#type-pos_integer">pos_integer()</a>) -&gt; <a href="#type-non_neg_integer">non_neg_integer()</a></tt>
-<ul class="definitions"><li><tt>DateTime = {{<a href="#type-pos_integer">pos_integer()</a>, <a href="#type-pos_integer">pos_integer()</a>, <a href="#type-pos_integer">pos_integer()</a>}, {<a href="#type-non_neg_integer">non_neg_integer()</a>, <a href="#type-non_neg_integer">non_neg_integer()</a>, <a href="#type-non_neg_integer">non_neg_integer()</a>}}</tt></li>
-</ul></p>
+<p><tt>expiry(Secs::none | DateTime | pos_integer()) -&gt; non_neg_integer()</tt>
+<ul class="definitions"><li><tt>DateTime = {{pos_integer(), pos_integer(), pos_integer()}, {non_neg_integer(), non_neg_integer(), non_neg_integer()}}</tt></li></ul></p>
 </div><p> Generates a valid expiry value for messages.
         If called with <code>none</code> as the parameter, it will return a <a>no-expire</a> value.
         If called with a datetime as the parameter, it will convert it to a valid expiry value.
@@ -107,56 +97,56 @@
 
 <h3 class="function"><a name="message_id-0">message_id/0</a></h3>
 <div class="spec">
-<p><tt>message_id() -&gt; binary()</tt></p>
+<p><tt>message_id() -&gt; binary()</tt><br></p>
 </div><p> Generates an "unique" and valid message Id</p>
 
 <h3 class="function"><a name="send_badge-3">send_badge/3</a></h3>
 <div class="spec">
-<p><tt>send_badge(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Badge::integer()) -&gt; ok</tt></p>
+<p><tt>send_badge(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Badge::integer()) -&gt; ok</tt><br></p>
 </div><p>Sends a message to Apple with just a badge</p>
 
 <h3 class="function"><a name="send_message-2">send_message/2</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Msg::#apns_msg{}) -&gt; ok</tt></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Msg::#apns_msg{}) -&gt; ok</tt><br></p>
 </div><p>Sends a message to Apple</p>
 
 <h3 class="function"><a name="send_message-3">send_message/3</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>) -&gt; ok</tt></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>) -&gt; ok</tt><br></p>
 </div><p>Sends a message to Apple with just an alert</p>
 
 <h3 class="function"><a name="send_message-4">send_message/4</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer()) -&gt; ok</tt></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer()) -&gt; ok</tt><br></p>
 </div><p>Sends a message to Apple with an alert and a badge</p>
 
 <h3 class="function"><a name="send_message-5">send_message/5</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string()) -&gt; ok</tt></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string()) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple</p>
 
 <h3 class="function"><a name="send_message-6">send_message/6</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::<a href="#type-non_neg_integer">non_neg_integer()</a>) -&gt; ok</tt></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple (complete with expiry)</p>
 
 <h3 class="function"><a name="send_message-7">send_message/7</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::<a href="#type-non_neg_integer">non_neg_integer()</a>, ExtraArgs::[<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]) -&gt; ok</tt></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple with expiry and extra arguments</p>
 
 <h3 class="function"><a name="start-0">start/0</a></h3>
 <div class="spec">
-<p><tt>start() -&gt; ok | {error, {already_started, apns}}</tt></p>
+<p><tt>start() -&gt; ok | {error, {already_started, apns}}</tt><br></p>
 </div><p>Starts the application</p>
 
 <h3 class="function"><a name="stop-0">stop/0</a></h3>
 <div class="spec">
-<p><tt>stop() -&gt; ok</tt></p>
+<p><tt>stop() -&gt; ok</tt><br></p>
 </div><p>Stops the application</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Mar 16 2011, 18:11:58.</i></p>
+<p><i>Generated by EDoc, Mar 21 2011, 12:14:26.</i></p>
 </body>
 </html>
