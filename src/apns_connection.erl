@@ -28,13 +28,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc  Sends a message to apple through the connection
-%% @spec send_message(apns:conn_id(), #apns_msg{}) -> ok
 -spec send_message(apns:conn_id(), #apns_msg{}) -> ok.
 send_message(ConnId, Msg) ->
   gen_server:cast(ConnId, Msg).
 
 %% @doc  Stops the connection
-%% @spec stop(apns:conn_id()) -> ok
 -spec stop(apns:conn_id()) -> ok.
 stop(ConnId) ->
   gen_server:cast(ConnId, stop).

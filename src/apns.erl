@@ -30,7 +30,6 @@
 -export_type([alert/0]).
 
 %% @doc Starts the application
-%% @spec start() -> ok | {error, {already_started, apns}}
 -spec start() -> ok | {error, {already_started, apns}}.
 start() ->
   _ = application:start(public_key),
@@ -38,13 +37,11 @@ start() ->
   application:start(apns).
 
 %% @doc Stops the application
-%% @spec stop() -> ok
 -spec stop() -> ok.
 stop() ->
   application:stop(apns).
 
 %% @doc Opens an unnamed connection using the default parameters
-%% @spec connect() -> {ok, pid()} | {error, Reason::term()}
 -spec connect() -> {ok, pid()} | {error, Reason::term()}.
 connect() ->
   connect(default_connection()).
@@ -52,7 +49,6 @@ connect() ->
 %% @doc Opens an unnamed connection using the given feedback or error function
 %%      or using the given #apns_connection{} parameters
 %%      or the name and default configuration if a name is given
-%% @spec connect(atom() | fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom() | string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name) when is_atom(Name) ->
   connect(Name, default_connection());
@@ -66,7 +62,6 @@ connect(Fun) when is_function(Fun, 2) ->
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback or error function
 %%      or using the given #apns_connection{} parameters
-%% @spec connect(atom(), fun((binary(), apns:status()) -> stop | any()) | fun((string()) -> any()) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom(), string() | fun((string()) -> _) | #apns_connection{}) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
@@ -77,40 +72,34 @@ connect(Name, Fun) when is_function(Fun, 2) ->
 
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback and error functions
-%% @spec connect(atom(), fun((binary(), apns:status()) -> stop | any()), fun((string()) -> any())) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}
 -spec connect(atom(), fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) -> {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, ErrorFun, FeedbackFun) ->
   connect(Name, (default_connection())#apns_connection{error_fun    = ErrorFun,
                                                        feedback_fun = FeedbackFun}).
 
 %% @doc Closes an open connection
-%% @spec disconnect(conn_id()) -> ok
 -spec disconnect(conn_id()) -> ok.
 disconnect(ConnId) ->
   apns_connection:stop(ConnId).
 
 %% @doc Sends a message to Apple
-%% @spec send_message(conn_id(), #apns_msg{}) -> ok
 -spec send_message(conn_id(), #apns_msg{}) -> ok.
 send_message(ConnId, Msg) ->
   apns_connection:send_message(ConnId, Msg).
 
 %% @doc Sends a message to Apple with just a badge
-%% @spec send_badge(conn_id(), Token::string(), Badge::integer()) -> ok
 -spec send_badge(conn_id(), string(), integer()) -> ok.
 send_badge(ConnId, DeviceToken, Badge) -> 
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  badge = Badge}).
 
 %% @doc Sends a message to Apple with just an alert
-%% @spec send_message(conn_id(), Token::string(), Alert::alert()) -> ok
 -spec send_message(conn_id(), string(), alert()) -> ok.
 send_message(ConnId, DeviceToken, Alert) -> 
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  alert = Alert}).
 
 %% @doc Sends a message to Apple with an alert and a badge
-%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer()) -> ok
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge) -> 
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
@@ -118,7 +107,6 @@ send_message(ConnId, DeviceToken, Alert, Badge) ->
                                  alert = Alert}).
 
 %% @doc Sends a full message to Apple
-%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string()) -> ok
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound) -> 
   send_message(ConnId, #apns_msg{alert = Alert,
@@ -127,7 +115,6 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
                                  device_token = DeviceToken}).
 
 %% @doc Sends a full message to Apple (complete with expiry)
-%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -> ok
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
   send_message(ConnId, #apns_msg{alert = Alert,
@@ -137,7 +124,6 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
                                  device_token = DeviceToken}).
 
 %% @doc Sends a full message to Apple with expiry and extra arguments
-%% @spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) -> 
   send_message(ConnId, #apns_msg{alert = Alert,
@@ -148,7 +134,6 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
                                  device_token = DeviceToken}).
 
 %% @doc  Generates an "unique" and valid message Id
-%% @spec message_id() -> binary()
 -spec message_id() -> binary().
 message_id() ->
   {_, _, MicroSecs} = erlang:now(),
@@ -162,8 +147,6 @@ message_id() ->
 %%       If called with a datetime as the parameter, it will convert it to a valid expiry value.
 %%       If called with an integer, it will add that many seconds to current time and return a valid
 %%        expiry value for that date.
-%% @spec expiry(none | DateTime | pos_integer()) -> non_neg_integer()
-%%        DateTime = {{pos_integer(),pos_integer(),pos_integer()}, {non_neg_integer(),non_neg_integer(),non_neg_integer()}}
 -spec expiry(none | {{1970..9999,1..12,1..31},{0..24,0..60,0..60}} | pos_integer()) -> non_neg_integer().
 expiry(none) -> 0;
 expiry(Secs) when is_integer(Secs) ->
