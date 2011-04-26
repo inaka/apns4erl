@@ -23,7 +23,6 @@ main() ->
     _ -> halt(1)
   end.
 
--spec test() -> any().
 -spec apns_test_() -> {setup, fun(() -> ok), fun((_) -> ok), {timeout, 120000, fun(() -> any())}}.
 apns_test_() ->
   {setup,
@@ -107,3 +106,5 @@ log_error(MsgId, Status) ->
 
 log_feedback(Token) ->
   error_logger:warning_msg("Device with token ~p removed the app~n", [Token]).
+
+-spec test() -> any().
