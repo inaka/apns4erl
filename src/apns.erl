@@ -15,7 +15,7 @@
 -export([start/0, stop/0]).
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
-         send_message/6, send_message/7]).
+         send_message/6, send_message/7, send_message/8]).
 -export([message_id/0, expiry/1]).
 
 -type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload | 
@@ -131,6 +131,17 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
                                  sound = Sound,
                                  extra = ExtraArgs,
                                  expiry= Expiry,
+                                 device_token = DeviceToken}).
+
+%% @doc Sends a full message to Apple with id, expiry and extra arguments
+-spec send_message(conn_id(), MsgId::binary(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+send_message(ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) -> 
+  send_message(ConnId, #apns_msg{id     = MsgId,
+                                 alert  = Alert,
+                                 badge  = Badge,
+                                 sound  = Sound,
+                                 extra  = ExtraArgs,
+                                 expiry = Expiry,
                                  device_token = DeviceToken}).
 
 %% @doc  Generates an "unique" and valid message Id
