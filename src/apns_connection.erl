@@ -188,7 +188,7 @@ handle_info(reconnect, State = #state{connection = Connection}) ->
       {stop, {in_closed, Reason}, State}
   end;
 handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
-  {stop, out_closed, State};
+  {stop, normal, State};
 handle_info(Request, State) ->
   {stop, {unknown_request, Request}, State}.
 
