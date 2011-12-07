@@ -16,9 +16,9 @@
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
          send_message/6, send_message/7, send_message/8]).
--export([message_id/0, expiry/1]).
+-export([message_id/0, expiry/1, timestamp/1]).
 
--type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload | 
+-type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload |
                   missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
                   unknown.
 -export_type([status/0]).
@@ -89,26 +89,26 @@ send_message(ConnId, Msg) ->
 
 %% @doc Sends a message to Apple with just a badge
 -spec send_badge(conn_id(), string(), integer()) -> ok.
-send_badge(ConnId, DeviceToken, Badge) -> 
+send_badge(ConnId, DeviceToken, Badge) ->
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  badge = Badge}).
 
 %% @doc Sends a message to Apple with just an alert
 -spec send_message(conn_id(), string(), alert()) -> ok.
-send_message(ConnId, DeviceToken, Alert) -> 
+send_message(ConnId, DeviceToken, Alert) ->
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  alert = Alert}).
 
 %% @doc Sends a message to Apple with an alert and a badge
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer()) -> ok.
-send_message(ConnId, DeviceToken, Alert, Badge) -> 
+send_message(ConnId, DeviceToken, Alert, Badge) ->
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  badge = Badge,
                                  alert = Alert}).
 
 %% @doc Sends a full message to Apple
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string()) -> ok.
-send_message(ConnId, DeviceToken, Alert, Badge, Sound) -> 
+send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
                                  sound = Sound,
@@ -125,7 +125,7 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
 
 %% @doc Sends a full message to Apple with expiry and extra arguments
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
-send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) -> 
+send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
                                  sound = Sound,
@@ -135,7 +135,7 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
 
 %% @doc Sends a full message to Apple with id, expiry and extra arguments
 -spec send_message(conn_id(), MsgId::binary(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
-send_message(ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) -> 
+send_message(ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
   send_message(ConnId, #apns_msg{id     = MsgId,
                                  alert  = Alert,
                                  badge  = Badge,
@@ -165,6 +165,10 @@ expiry(Secs) when is_integer(Secs) ->
 expiry(Date) ->
   calendar:datetime_to_gregorian_seconds(Date) - ?EPOCH.
 
+-spec timestamp(pos_integer()) -> calendar:datetime().
+timestamp(Secs) ->
+  calendar:gregorian_seconds_to_datetime(Secs + ?EPOCH).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 get_env(K, Def) ->
   case application:get_env(apns, K) of
@@ -178,7 +182,6 @@ default_connection() ->
                               apple_port      = get_env(apple_port,       DefaultConn#apns_connection.apple_port),
                               key_file        = get_env(key_file,         DefaultConn#apns_connection.key_file),
                               cert_file       = get_env(cert_file,        DefaultConn#apns_connection.cert_file),
-                              ssl_seed        = get_env(ssl_seed,         DefaultConn#apns_connection.ssl_seed),
                               timeout         = get_env(timeout,          DefaultConn#apns_connection.timeout),
                               error_fun       = case get_env(error_fun,   DefaultConn#apns_connection.error_fun) of
                                                   {M, F} -> fun(I, S) -> M:F(I, S) end;

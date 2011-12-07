@@ -141,18 +141,18 @@ handle_info({ssl, SslSocket, Data}, State = #state{out_socket = SslSocket,
       end;
     NextBuffer -> %% We need to wait for the rest of the message
       {noreply, State#state{out_buffer = NextBuffer}}
-  end;  
+  end;
 handle_info({ssl, SslSocket, Data}, State = #state{in_socket  = SslSocket,
                                                    connection =
                                                      #apns_connection{feedback_fun = Feedback},
                                                    in_buffer  = CurrentBuffer
                                                   }) ->
   case <<CurrentBuffer/binary, Data/binary>> of
-    <<_TimeT:4/big-unsigned-integer-unit:8,
+    <<TimeT:4/big-unsigned-integer-unit:8,
       Length:2/big-unsigned-integer-unit:8,
       Token:Length/binary,
       Rest/binary>> ->
-      try Feedback(binary_to_list(Token))
+      try Feedback({apns:timestamp(TimeT), bin_to_hexstr(Token)})
       catch
         _:Error ->
           error_logger:error_msg("Error trying to inform feedback token ~p:~n\t~p~n", [Token, Error])
@@ -176,7 +176,7 @@ handle_info(reconnect, State = #state{connection = Connection}) ->
          Connection#apns_connection.feedback_host,
          Connection#apns_connection.feedback_port,
          [{certfile, filename:absname(Connection#apns_connection.cert_file)},
-          {ssl_imp, old}, {mode, binary} |
+          {mode, binary} |
             case Connection#apns_connection.key_file of
               undefined -> [];
               KeyFile -> [{keyfile, filename:absname(KeyFile)}]
@@ -206,7 +206,7 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 build_payload(Params, Extra) ->
   apns_mochijson2:encode(
     {[{<<"aps">>, do_build_payload(Params, [])} | Extra]}).
-do_build_payload([{Key,Value}|Params], Payload) -> 
+do_build_payload([{Key,Value}|Params], Payload) ->
   case Value of
     Value when is_list(Value) ->
       do_build_payload(Params, [{atom_to_binary(Key, utf8), unicode:characters_to_binary(Value)} | Payload]);
@@ -237,7 +237,7 @@ do_build_payload([], Payload) ->
   {Payload}.
 
 -spec send_payload(#sslsocket{}, binary(), non_neg_integer(), binary(), iolist()) -> ok | {error, term()}.
-send_payload(Socket, MsgId, Expiry, BinToken, Payload) -> 
+send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
     BinPayload = list_to_binary(Payload),
     PayloadLength = erlang:size(BinPayload),
     Packet = [<<1:8, MsgId/binary, Expiry:4/big-unsigned-integer-unit:8,
@@ -253,9 +253,18 @@ hexstr_to_bin(S) ->
   hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc) ->
   list_to_binary(lists:reverse(Acc));
+hexstr_to_bin([$ |T], Acc) ->
+    hexstr_to_bin(T, Acc);
 hexstr_to_bin([X,Y|T], Acc) ->
   {ok, [V], []} = io_lib:fread("~16u", [X,Y]),
   hexstr_to_bin(T, [V | Acc]).
+
+bin_to_hexstr(Binary) ->
+    L = size(Binary),
+    Bits = L * 8,
+    <<X:Bits/big-unsigned-integer>> = Binary,
+    F = lists:flatten(io_lib:format("~~~B.16.0B", [L * 2])),
+    lists:flatten(io_lib:format(F, [X])).
 
 parse_status(0) -> no_errors;
 parse_status(1) -> processing_error;
