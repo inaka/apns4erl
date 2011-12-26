@@ -52,7 +52,6 @@ start_link(Connection) ->
 %% @hidden
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
-  ok = ssl:seed(Connection#apns_connection.ssl_seed),
   try
     case ssl:connect(
            Connection#apns_connection.apple_host,
