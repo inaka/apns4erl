@@ -164,12 +164,12 @@ handle_info({ssl, SslSocket, Data}, State = #state{in_socket  = SslSocket,
   end;
 handle_info({ssl_closed, SslSocket}, State = #state{in_socket = SslSocket,
                                                     connection= Connection}) ->
-  error_logger:info_msg("Feedback server disconnected. Waiting ~p millis to connect again...~n",
-                        [Connection#apns_connection.feedback_timeout]),
+  %% error_logger:info_msg("Feedback server disconnected. Waiting ~p millis to connect again...~n",
+  %%                       [Connection#apns_connection.feedback_timeout]),
   _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),
   {noreply, State#state{in_socket = undefined}};
 handle_info(reconnect, State = #state{connection = Connection}) ->
-  error_logger:info_msg("Reconnecting the Feedback server...~n"),
+  %% error_logger:info_msg("Reconnecting the Feedback server...~n"),
   case ssl:connect(
          Connection#apns_connection.feedback_host,
          Connection#apns_connection.feedback_port,
@@ -186,7 +186,7 @@ handle_info(reconnect, State = #state{connection = Connection}) ->
       {stop, {in_closed, Reason}, State}
   end;
 handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
-  {stop, normal, State};
+  {stop, connection_closed_by_remote_server, State};
 handle_info(Request, State) ->
   {stop, {unknown_request, Request}, State}.
 
@@ -206,7 +206,7 @@ build_payload(Params, Extra) ->
     {[{<<"aps">>, do_build_payload(Params, [])} | Extra]}).
 do_build_payload([{Key,Value}|Params], Payload) -> 
   case Value of
-    Value when is_list(Value) ->
+    Value when is_list(Value); is_binary(Value) ->
       do_build_payload(Params, [{atom_to_binary(Key, utf8), unicode:characters_to_binary(Value)} | Payload]);
     Value when is_integer(Value) ->
       do_build_payload(Params, [{atom_to_binary(Key, utf8), Value} | Payload]);
