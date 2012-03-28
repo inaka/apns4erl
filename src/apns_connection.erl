@@ -55,15 +55,20 @@ start_link(Connection) ->
 init(Connection) ->
   ok = ssl:seed(Connection#apns_connection.ssl_seed),
   try
+	SSLParameters = [{certfile, filename:absname(Connection#apns_connection.cert_file)},
+					{mode, binary} |
+              	  		case Connection#apns_connection.key_file of
+							undefined -> [];
+							KeyFile -> [{keyfile, filename:absname(KeyFile)}]
+					end],
+	SSLParameters2 =  case Connection#apns_connection.cert_password of
+						undefined -> SSLParameters;
+						Password -> [{password, Password} | SSLParameters]
+					end,
     case ssl:connect(
            Connection#apns_connection.apple_host,
            Connection#apns_connection.apple_port,
-           [{certfile, filename:absname(Connection#apns_connection.cert_file)},
-            {mode, binary} |
-              case Connection#apns_connection.key_file of
-                undefined -> [];
-                KeyFile -> [{keyfile, filename:absname(KeyFile)}]
-              end],
+           SSLParameters2,
            Connection#apns_connection.timeout) of
       {ok, OutSocket} ->
         case ssl:connect(

@@ -4,6 +4,7 @@
                           apple_port        = 2195                                  :: integer(),
                           cert_file         = "priv/cert.pem"                       :: string(),
                           key_file          = undefined                             :: undefined | string(),
+						  cert_password     = undefined								:: undefined | string(),
                           timeout           = 30000                                 :: integer(),
                           error_fun         = fun(X,Y) -> erlang:display({X,Y}) end :: fun((binary(), apns:status()) -> stop | _),
                           feedback_host     = "feedback.sandbox.push.apple.com"     :: string(),
