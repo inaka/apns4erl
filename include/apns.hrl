@@ -1,6 +1,5 @@
 %% Connection Parameters
--record(apns_connection, {ssl_seed          = "someseedstring"                      :: string(),
-                          apple_host        = "gateway.sandbox.push.apple.com"      :: string(),
+-record(apns_connection, {apple_host        = "gateway.sandbox.push.apple.com"      :: string(),
                           apple_port        = 2195                                  :: integer(),
                           cert_file         = "priv/cert.pem"                       :: string(),
                           key_file          = undefined                             :: undefined | string(),

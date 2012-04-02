@@ -11,13 +11,12 @@
 
 -include("apns.hrl").
 -include("localized.hrl").
--include_lib("ssl/src/ssl_internal.hrl").
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
 
--record(state, {out_socket        :: #sslsocket{},
-                in_socket         :: #sslsocket{},
+-record(state, {out_socket        :: tuple(),
+                in_socket         :: tuple(),
                 connection        :: #apns_connection{},
                 in_buffer = <<>>  :: binary(),
                 out_buffer = <<>> :: binary()}).
@@ -53,7 +52,6 @@ start_link(Connection) ->
 %% @hidden
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
-  ok = ssl:seed(Connection#apns_connection.ssl_seed),
   try
 	SSLParameters = [{certfile, filename:absname(Connection#apns_connection.cert_file)},
 					{mode, binary} |
@@ -119,7 +117,7 @@ handle_cast(stop, State) ->
   {stop, normal, State}.
 
 %% @hidden
--spec handle_info({ssl, #sslsocket{}, binary()} | {ssl_closed, #sslsocket{}} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
+-spec handle_info({ssl, tuple(), binary()} | {ssl_closed, tuple()} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
 handle_info({ssl, SslSocket, Data}, State = #state{out_socket = SslSocket,
                                                    connection =
                                                      #apns_connection{error_fun = Error},
@@ -241,7 +239,7 @@ do_build_payload([{Key,Value}|Params], Payload) ->
 do_build_payload([], Payload) ->
   {Payload}.
 
--spec send_payload(#sslsocket{}, binary(), non_neg_integer(), binary(), iolist()) -> ok | {error, term()}.
+-spec send_payload(tuple(), binary(), non_neg_integer(), binary(), iolist()) -> ok | {error, term()}.
 send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
     BinPayload = list_to_binary(Payload),
     PayloadLength = erlang:size(BinPayload),
