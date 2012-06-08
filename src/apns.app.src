@@ -16,7 +16,6 @@
          {timeout,          30000},
          {feedback_host,    "feedback.sandbox.push.apple.com"},
          {feedback_port,    2196},
-         {feedback_fun,     {erlang, display}},
-         {feedback_timeout, 1000} %% A Second
+         {feedback_timeout, 600000} %% 10 Minutes
         ]}
  ]}.
