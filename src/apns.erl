@@ -85,8 +85,7 @@ disconnect(ConnId) ->
 %% @doc Sends a message to Apple
 -spec send_message(conn_id(), #apns_msg{}) -> ok.
 send_message(ConnId, Msg) ->
-  apns_connection:send_message(ConnId, Msg),
-  Msg#apns_msg.id.
+  apns_connection:send_message(ConnId, Msg).
 
 %% @doc Sends a message to Apple with just a badge
 -spec send_badge(conn_id(), string(), integer()) -> ok.
