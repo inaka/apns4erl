@@ -13,7 +13,7 @@
 -include("localized.hrl").
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([send_message/2, stop/1]).
+-export([send_message/2, measure_size/1, stop/1]).
 
 -record(state, {out_socket        :: tuple(),
                 in_socket         :: tuple(),
@@ -25,6 +25,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Public API
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+measure_size(Msg) -> erlang:size(erlang:iolist_to_binary(build_payload(Msg))).
 
 %% @doc  Sends a message to apple through the connection
 -spec send_message(apns:conn_id(), #apns_msg{}) -> ok.
@@ -98,9 +100,7 @@ handle_call(Request, _From, State) ->
 -spec handle_cast(stop | #apns_msg{}, state()) -> {noreply, state()} | {stop, normal | {error, term()}, state()}.
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
-  Payload = build_payload([{alert, Msg#apns_msg.alert},
-                           {badge, Msg#apns_msg.badge},
-                           {sound, Msg#apns_msg.sound}], Msg#apns_msg.extra),
+  Payload  = build_payload(Msg),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
   case send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload) of
     ok ->
@@ -202,9 +202,13 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-build_payload(Params, Extra) ->
-  apns_mochijson2:encode(
-    {[{<<"aps">>, do_build_payload(Params, [])} | Extra]}).
+build_payload(Msg) ->
+    Params =
+        [{alert, Msg#apns_msg.alert},
+         {badge, Msg#apns_msg.badge},
+         {sound, Msg#apns_msg.sound}],
+    Extra = Msg#apns_msg.extra,
+    apns_mochijson2:encode({[{<<"aps">>, do_build_payload(Params, [])} | Extra]}).
 do_build_payload([{Key,Value}|Params], Payload) -> 
   case Value of
     Value when is_list(Value); is_binary(Value) ->
