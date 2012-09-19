@@ -53,45 +53,63 @@ start_link(Connection) ->
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
   try
-	SSLParameters = [{certfile, filename:absname(Connection#apns_connection.cert_file)},
-					{mode, binary} |
-              	  		case Connection#apns_connection.key_file of
-							undefined -> [];
-							KeyFile -> [{keyfile, filename:absname(KeyFile)}]
-					end],
-	SSLParameters2 =  case Connection#apns_connection.cert_password of
-						undefined -> SSLParameters;
-						Password -> [{password, Password} | SSLParameters]
-					end,
-    case ssl:connect(
-           Connection#apns_connection.apple_host,
-           Connection#apns_connection.apple_port,
-           SSLParameters2,
-           Connection#apns_connection.timeout) of
-      {ok, OutSocket} ->
-        case ssl:connect(
-               Connection#apns_connection.feedback_host,
-               Connection#apns_connection.feedback_port,
-               [{certfile, filename:absname(Connection#apns_connection.cert_file)},
-                {mode, binary}|
-                  case Connection#apns_connection.key_file of
-                    undefined -> [];
-                    KeyFile2 -> [{keyfile, filename:absname(KeyFile2)}]
-                  end],
-               Connection#apns_connection.timeout) of
-          {ok, InSocket} ->
-            {ok, #state{out_socket  = OutSocket,
-                        in_socket   = InSocket,
-                        connection  = Connection}};
-          {error, Reason} ->
-            {stop, Reason}
+    case open_out(Connection) of
+      {ok, OutSocket} -> case open_feedback(Connection) of
+          {ok, InSocket} -> {ok, #state{out_socket=OutSocket, in_socket=InSocket, connection=Connection}};
+          {error, Reason} -> {stop, Reason}
         end;
-      {error, Reason} ->
-        {stop, Reason}
+      {error, Reason} -> {stop, Reason}
     end
   catch
-    _:{error, Reason2} ->
-      {stop, Reason2}
+    _:{error, Reason2} -> {stop, Reason2}
+  end.
+
+%% @hidden
+open_out(Connection) ->
+  KeyFile = case Connection#apns_connection.key_file of
+    undefined -> [];
+    Filename -> [{keyfile, filename:absname(Filename)}]
+  end,
+  SslOpts = [
+    {certfile, filename:absname(Connection#apns_connection.cert_file)},
+    {mode, binary} | KeyFile
+  ],
+  RealSslOpts = case Connection#apns_connection.cert_password of
+    undefined -> SslOpts;
+    Password -> [{password, Password} | SslOpts]
+  end,
+  case ssl:connect(
+    Connection#apns_connection.apple_host,
+    Connection#apns_connection.apple_port,
+    RealSslOpts,
+    Connection#apns_connection.timeout
+  ) of
+    {ok, OutSocket} -> {ok, OutSocket};
+    {error, Reason} -> {error, Reason}
+  end.
+
+%% @hidden
+open_feedback(Connection) ->
+  KeyFile = case Connection#apns_connection.key_file of
+    undefined -> [];
+    Filename -> [{keyfile, filename:absname(Filename)}]
+  end,
+  SslOpts = [
+    {certfile, filename:absname(Connection#apns_connection.cert_file)},
+    {mode, binary} | KeyFile
+  ],
+  RealSslOpts = case Connection#apns_connection.cert_password of
+    undefined -> SslOpts;
+    Password -> [{password, Password} | SslOpts]
+  end,
+  case ssl:connect(
+    Connection#apns_connection.feedback_host,
+    Connection#apns_connection.feedback_port,
+    RealSslOpts,
+    Connection#apns_connection.timeout
+  ) of
+    {ok, InSocket} -> {ok, InSocket};
+    {error, Reason} -> {error, Reason}
   end.
 
 %% @hidden
@@ -101,6 +119,17 @@ handle_call(Request, _From, State) ->
 
 %% @hidden
 -spec handle_cast(stop | #apns_msg{}, state()) -> {noreply, state()} | {stop, normal | {error, term()}, state()}.
+handle_cast(Msg, State=#state{out_socket=undefined,connection=Connection}) ->
+  try
+    error_logger:info_msg("Reconnecting to APNS...~n"),
+    case open_out(Connection) of
+      {ok, Socket} -> handle_cast(Msg, State#state{out_socket=Socket});
+      {error, Reason} -> {stop, Reason}
+    end
+  catch
+    _:{error, Reason2} -> {stop, Reason2}
+  end;
+
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
   Payload = build_payload([{alert, Msg#apns_msg.alert},
@@ -113,6 +142,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
     {error, Reason} ->
       {stop, {error, Reason}, State}
   end;
+
 handle_cast(stop, State) ->
   {stop, normal, State}.
 
@@ -167,31 +197,25 @@ handle_info({ssl, SslSocket, Data}, State = #state{in_socket  = SslSocket,
     NextBuffer -> %% We need to wait for the rest of the message
       {noreply, State#state{in_buffer = NextBuffer}}
   end;
+
 handle_info({ssl_closed, SslSocket}, State = #state{in_socket = SslSocket,
                                                     connection= Connection}) ->
   error_logger:info_msg("Feedback server disconnected. Waiting ~p millis to connect again...~n",
                         [Connection#apns_connection.feedback_timeout]),
   _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),
   {noreply, State#state{in_socket = undefined}};
+
 handle_info(reconnect, State = #state{connection = Connection}) ->
   error_logger:info_msg("Reconnecting the Feedback server...~n"),
-  case ssl:connect(
-         Connection#apns_connection.feedback_host,
-         Connection#apns_connection.feedback_port,
-         [{certfile, filename:absname(Connection#apns_connection.cert_file)},
-          {mode, binary} |
-            case Connection#apns_connection.key_file of
-              undefined -> [];
-              KeyFile -> [{keyfile, filename:absname(KeyFile)}]
-            end],
-         Connection#apns_connection.timeout) of
-    {ok, InSocket} ->
-      {noreply, State#state{in_socket = InSocket}};
-    {error, Reason} ->
-      {stop, {in_closed, Reason}, State}
+  case open_feedback(Connection) of
+    {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
+    {error, Reason} -> {stop, {in_closed, Reason}, State}
   end;
+
 handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
-  {stop, normal, State};
+  error_logger:info_msg("APNS disconnected~n"),
+  {noreply, State#state{out_socket=undefined}};
+
 handle_info(Request, State) ->
   {stop, {unknown_request, Request}, State}.
 
