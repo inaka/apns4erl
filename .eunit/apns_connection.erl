@@ -14,7 +14,6 @@
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
--export([build_payload/2]).
 
 -record(state, {out_socket        :: tuple(),
                 in_socket         :: tuple(),
@@ -249,8 +248,8 @@ send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
-    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~n",
-                         [MsgId, Expiry, BinPayload]),
+    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
+                         [MsgId, Expiry, BinPayload, Packet]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
