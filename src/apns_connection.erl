@@ -254,8 +254,16 @@ do_build_payload([{Key,Value}|Params], Payload) ->
                               none -> [];
                               Image -> [{<<"launch-image">>, unicode:characters_to_binary(Image)}]
                             end ++
-                [{<<"loc-key">>, unicode:characters_to_binary(LocKey)},
-                 {<<"loc-args">>, lists:map(fun unicode:characters_to_binary/1, Args)}]},
+               case LocKey of 
+                 "" -> [];
+                 _ -> [{<<"loc-key">>, unicode:characters_to_binary(LocKey)}]
+               end  ++
+           
+               case Args of 
+                 [] -> [];
+                 _ -> [{<<"loc-args">>, lists:map(fun unicode:characters_to_binary/1, Args)}]
+               end 
+              },
       do_build_payload(Params, [{atom_to_binary(Key, utf8), Json} | Payload]);
     _ ->
       do_build_payload(Params,Payload)
