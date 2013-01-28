@@ -14,6 +14,7 @@
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
+-export([build_payload/1]).
 
 -record(state, {out_socket        :: tuple(),
                 in_socket         :: tuple(),
@@ -132,9 +133,7 @@ handle_cast(Msg, State=#state{out_socket=undefined,connection=Connection}) ->
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
-  Payload = build_payload([{alert, Msg#apns_msg.alert},
-                           {badge, Msg#apns_msg.badge},
-                           {sound, Msg#apns_msg.sound}], Msg#apns_msg.extra),
+  Payload = build_payload(Msg),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
   case send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload) of
     ok ->
@@ -230,6 +229,14 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+build_payload(#apns_msg{alert = Alert,
+                        badge = Badge,
+                        sound = Sound,
+                        extra = Extra}) ->
+    build_payload([{alert, Alert},
+                   {badge, Badge},
+                   {sound, Sound}], Extra).
+
 build_payload(Params, Extra) ->
   apns_mochijson2:encode(
     {[{<<"aps">>, do_build_payload(Params, [])} | Extra]}).
