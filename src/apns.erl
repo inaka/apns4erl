@@ -11,11 +11,13 @@
 -include("localized.hrl").
 
 -define(EPOCH, 62167219200).
+-define(MAX_PAYLOAD, 256).
 
 -export([start/0, stop/0]).
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
          send_message/6, send_message/7, send_message/8]).
+-export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
 
 -type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload |
@@ -113,6 +115,12 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
                                  badge = Badge,
                                  sound = Sound,
                                  device_token = DeviceToken}).
+
+%% @doc Predicts the number of bytes left in a message for additional data.
+-spec estimate_available_bytes(#apns_msg{}) -> integer().
+estimate_available_bytes(#apns_msg{} = Msg) ->
+  Payload = apns_connection:build_payload(Msg),
+  ?MAX_PAYLOAD - erlang:size(list_to_binary(Payload)).
 
 %% @doc Sends a full message to Apple (complete with expiry)
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -> ok.
