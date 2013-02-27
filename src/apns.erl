@@ -28,7 +28,8 @@
 -type conn_id() :: atom() | pid().
 -export_type([conn_id/0]).
 
--type alert() :: string() | #loc_alert{}.
+-type apns_str() :: binary() | string().
+-type alert() :: apns_str() | #loc_alert{}.
 -export_type([alert/0]).
 
 %% @doc Starts the application
@@ -109,7 +110,8 @@ send_message(ConnId, DeviceToken, Alert, Badge) ->
                                  alert = Alert}).
 
 %% @doc Sends a full message to Apple
--spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string()) -> ok.
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(),
+                   Sound::apns_str()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
@@ -123,7 +125,8 @@ estimate_available_bytes(#apns_msg{} = Msg) ->
   ?MAX_PAYLOAD - erlang:size(list_to_binary(Payload)).
 
 %% @doc Sends a full message to Apple (complete with expiry)
--spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -> ok.
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(),
+                   Sound::apns_str(), Expiry::non_neg_integer()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
@@ -132,7 +135,9 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
                                  device_token = DeviceToken}).
 
 %% @doc Sends a full message to Apple with expiry and extra arguments
--spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+-spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(),
+                   Sound::apns_str(), Expiry::non_neg_integer(),
+                   ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
@@ -142,7 +147,9 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
                                  device_token = DeviceToken}).
 
 %% @doc Sends a full message to Apple with id, expiry and extra arguments
--spec send_message(conn_id(), MsgId::binary(), Token::string(), Alert::alert(), Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+-spec send_message(conn_id(), MsgId::binary(), Token::string(), Alert::alert(),
+                   Badge::integer(), Sound::apns_str(), Expiry::non_neg_integer(),
+                   ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
 send_message(ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
   send_message(ConnId, #apns_msg{id     = MsgId,
                                  alert  = Alert,
