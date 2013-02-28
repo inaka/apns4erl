@@ -21,17 +21,17 @@
 %% @hidden
 -spec start_link() -> {ok, pid()} | ignore | {error, {already_started, pid()} | shutdown | term()}.
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    apns_supervisor2:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @hidden
 -spec start_connection(#apns_connection{}) -> {ok, pid()} | {error, term()}.
 start_connection(Connection) ->
-  supervisor:start_child(?MODULE, [Connection]).
+  apns_supervisor2:start_child(?MODULE, [Connection]).
 
 %% @hidden
 -spec start_connection(atom(), #apns_connection{}) -> {ok, pid()} | {error, term()}.
 start_connection(Name, Connection) ->
-  supervisor:start_child(?MODULE, [Name, Connection]).
+  apns_supervisor2:start_child(?MODULE, [Name, Connection]).
 
 %% ===================================================================
 %% Supervisor callbacks
@@ -39,7 +39,8 @@ start_connection(Name, Connection) ->
 %% @hidden
 -spec init(_) ->  {ok, {{simple_one_for_one, 5, 10}, [{connection, {apns_connection, start_link, []}, transient, 5000, worker, [apns_connection]}]}}.
 init(_) ->
+    Restart = apns:get_env(connections_sup_restart_strategy, transient),
   {ok,
    {{simple_one_for_one, 5, 10},
     [{connection, {apns_connection, start_link, []},
-      transient, 5000, worker, [apns_connection]}]}}.
+      Restart, 5000, worker, [apns_connection]}]}}.

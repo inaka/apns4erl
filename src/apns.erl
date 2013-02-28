@@ -19,6 +19,7 @@
          send_message/6, send_message/7, send_message/8]).
 -export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
+-export([get_env/2]).
 
 -type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload |
                   missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
