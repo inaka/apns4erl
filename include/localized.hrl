@@ -1,5 +1,6 @@
--record(loc_alert, {body    = none  :: none | string(),
-                    action  = none  :: none | string(),
-                    key     = ""    :: string(),
-                    args    = []    :: [string()],
-                    image   = none  :: none | string()}).
+
+-record(loc_alert, {body    = none  :: none | apns:apns_str(),
+                    action  = none  :: none | apns:apns_str(),
+                    key     = ""    :: apns:apns_str(),
+                    args    = []    :: [apns:apns_str()],
+                    image   = none  :: none | apns:apns_str()}).
