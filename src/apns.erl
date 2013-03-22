@@ -21,17 +21,16 @@
 -export([message_id/0, expiry/1, timestamp/1]).
 -export([get_env/2]).
 
+-export_type([status/0, conn_id/0, apns_str/0, alert/0]).
+
 -type status() :: no_errors | processing_error | missing_token | missing_topic | missing_payload |
                   missing_token_size | missing_topic_size | missing_payload_size | invalid_token |
                   unknown.
--export_type([status/0]).
 
 -type conn_id() :: atom() | pid().
--export_type([conn_id/0]).
 
 -type apns_str() :: binary() | string().
 -type alert() :: apns_str() | #loc_alert{}.
--export_type([alert/0]).
 
 %% @doc Starts the application
 -spec start() -> ok | {error, {already_started, apns}}.
