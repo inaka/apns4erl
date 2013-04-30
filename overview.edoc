@@ -3,5 +3,5 @@
 @copyright 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
 @version 1.0
 @title Apple Push Notification Server for Erlang 
-@reference <a href="http://github.com/novamens/erfb">Github Repository</a>
+@reference <a href="https://github.com/inaka/apns4erl">Github Repository</a>
 @reference <a href="http://en.wikipedia.org/wiki/Apple_Push_Notification_Service">APNS</a>
