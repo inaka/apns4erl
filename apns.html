@@ -1,6 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Module apns</title>
 <link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
 </head>
@@ -18,7 +19,11 @@
 <h2><a name="types">Data Types</a></h2>
 
 <h3 class="typedecl"><a name="type-alert">alert()</a></h3>
-<p><tt>alert() = string() | #loc_alert{}</tt></p>
+<p><tt>alert() = <a href="#type-apns_str">apns_str()</a> | #loc_alert{}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-apns_str">apns_str()</a></h3>
+<p><tt>apns_str() = binary() | string()</tt></p>
 
 
 <h3 class="typedecl"><a name="type-conn_id">conn_id()</a></h3>
@@ -40,6 +45,7 @@
 <tr><td valign="top"><a href="#connect-3">connect/3</a></td><td>Opens an connection named after the atom()
        using the given feedback and error functions.</td></tr>
 <tr><td valign="top"><a href="#disconnect-1">disconnect/1</a></td><td>Closes an open connection.</td></tr>
+<tr><td valign="top"><a href="#estimate_available_bytes-1">estimate_available_bytes/1</a></td><td>Predicts the number of bytes left in a message for additional data.</td></tr>
 <tr><td valign="top"><a href="#expiry-1">expiry/1</a></td><td> Generates a valid expiry value for messages.</td></tr>
 <tr><td valign="top"><a href="#message_id-0">message_id/0</a></td><td> Generates an "unique" and valid message Id.</td></tr>
 <tr><td valign="top"><a href="#send_badge-3">send_badge/3</a></td><td>Sends a message to Apple with just a badge.</td></tr>
@@ -52,6 +58,7 @@
 <tr><td valign="top"><a href="#send_message-8">send_message/8</a></td><td>Sends a full message to Apple with id, expiry and extra arguments.</td></tr>
 <tr><td valign="top"><a href="#start-0">start/0</a></td><td>Starts the application.</td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td>Stops the application.</td></tr>
+<tr><td valign="top"><a href="#timestamp-1">timestamp/1</a></td><td></td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
@@ -85,6 +92,11 @@
 <div class="spec">
 <p><tt>disconnect(ConnId::<a href="#type-conn_id">conn_id()</a>) -&gt; ok</tt><br></p>
 </div><p>Closes an open connection</p>
+
+<h3 class="function"><a name="estimate_available_bytes-1">estimate_available_bytes/1</a></h3>
+<div class="spec">
+<p><tt>estimate_available_bytes(Apns_msg::#apns_msg{}) -&gt; integer()</tt><br></p>
+</div><p>Predicts the number of bytes left in a message for additional data.</p>
 
 <h3 class="function"><a name="expiry-1">expiry/1</a></h3>
 <div class="spec">
@@ -122,22 +134,22 @@
 
 <h3 class="function"><a name="send_message-5">send_message/5</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string()) -&gt; ok</tt><br></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::<a href="#type-apns_str">apns_str()</a>) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple</p>
 
 <h3 class="function"><a name="send_message-6">send_message/6</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::non_neg_integer()) -&gt; ok</tt><br></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::<a href="#type-apns_str">apns_str()</a>, Expiry::non_neg_integer()) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple (complete with expiry)</p>
 
 <h3 class="function"><a name="send_message-7">send_message/7</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]) -&gt; ok</tt><br></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::<a href="#type-apns_str">apns_str()</a>, Expiry::non_neg_integer(), ExtraArgs::[<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple with expiry and extra arguments</p>
 
 <h3 class="function"><a name="send_message-8">send_message/8</a></h3>
 <div class="spec">
-<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, MsgId::binary(), Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::string(), Expiry::non_neg_integer(), ExtraArgs::[<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]) -&gt; ok</tt><br></p>
+<p><tt>send_message(ConnId::<a href="#type-conn_id">conn_id()</a>, MsgId::binary(), Token::string(), Alert::<a href="#type-alert">alert()</a>, Badge::integer(), Sound::<a href="#type-apns_str">apns_str()</a>, Expiry::non_neg_integer(), ExtraArgs::[<a href="apns_mochijson2.html#type-json_property">apns_mochijson2:json_property()</a>]) -&gt; ok</tt><br></p>
 </div><p>Sends a full message to Apple with id, expiry and extra arguments</p>
 
 <h3 class="function"><a name="start-0">start/0</a></h3>
@@ -149,9 +161,14 @@
 <div class="spec">
 <p><tt>stop() -&gt; ok</tt><br></p>
 </div><p>Stops the application</p>
+
+<h3 class="function"><a name="timestamp-1">timestamp/1</a></h3>
+<div class="spec">
+<p><tt>timestamp(Secs::pos_integer()) -&gt; <a href="calendar.html#type-datetime">calendar:datetime()</a></tt><br></p>
+</div>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Jun 28 2011, 12:03:30.</i></p>
+<p><i>Generated by EDoc, Apr 30 2013, 16:48:34.</i></p>
 </body>
 </html>
