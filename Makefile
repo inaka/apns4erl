@@ -17,7 +17,7 @@ analyze: all
 	dialyzer --verbose --plt ~/.apns4erl.plt -Werror_handling ebin
 
 xref: all
-	rebar skip_deps=true xref
+	rebar skip_deps=true --verbose xref
    
 shell: all
 	if [ -f `hostname`.config ]; then\
