@@ -282,8 +282,8 @@ send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
                 PayloadLength:16/big,
                 BinPayload/binary>>],
     % IRCCloud Patch, this is only useful for debugging
-    % error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
-    %                      [MsgId, Expiry, BinPayload, Packet]),
+    % error_logger:info_msg("Sending msg ~p (expires on ~p): [~B] ~s~n~p~n",
+    %                      [MsgId, Expiry, PayloadLength, BinPayload, Packet]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
