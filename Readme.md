@@ -32,9 +32,12 @@ Then, once you've started the apns application, you can connect to the APNS netw
 
 ```erlang
       apns:connect(
-        my_connection_name,                   % you connection identifier
-        fun handle_apns_error/2,              % called in case of a "hard" error
-        fun handle_apns_delete_subscription/1 % called if the device uninstalled the application
+        %% your connection identifier:
+        my_connection_name,
+        %% called in case of a "hard" error:
+        fun ?MODULE:handle_apns_error/2,
+        %% called if the device uninstalled the application:
+        fun ?MODULE:handle_apns_delete_subscription/1
       ).
 ```
 
@@ -46,6 +49,13 @@ As a result, you will get a tuple:
 
 **Pid** is the Pid of the [apns_connection](/inaka/apns4erl/blob/master/src/apns_connection.erl) process spawned to handle the connection.
 
+**CAUTION**: It is **highly recommended** to pass a fully qualified function for
+callbacks, using the ``fun M:F/A`` syntax. If you pass in a local fun
+using ``fun F/A``, any subsequent code upgrades to the module where
+that local fun was defined, will cause the code server to kill processes
+that are holding on to references to the old code (eg. the apns
+connection processes, thus killing the apns4erl application).
+
 To send a notification
 ======================
     apns:send_message(my_connection_name, "this_is_a_valid_device_token", "hello world").
@@ -55,6 +65,7 @@ That's it!
 A little more about what's going on
 ===================================
 Actually, send\_message/3, send\_message/4, send\_message/5, send\_message/6, send\_message/7, and send\_message/8 are calling send\_message/2, which takes a **#apns\_msg** record as its 2nd argument. Thus, you can also create the message customized with your own needs, by using a **#apns\_msg** record:
+
 ```erlang
     -include_lib("apns/include/apns.hrl").
 
