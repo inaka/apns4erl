@@ -17,7 +17,7 @@
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
          send_message/6, send_message/7, send_message/8]).
--export([send_content_available/2]).
+-export([send_content_available/2, send_content_available/3]).
 -export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
 
@@ -96,6 +96,13 @@ send_message(ConnId, Msg) ->
 send_content_available(ConnId, DeviceToken) ->
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
                                  content_available = true}).
+
+%% @doc Sends a message to Apple with content_available: 1 and an alert
+-spec send_content_available(conn_id(), string(), string()) -> ok.
+send_content_available(ConnId, DeviceToken, Alert) ->
+  send_message(ConnId, #apns_msg{device_token = DeviceToken,
+                                 content_available = true,
+                                 alert = Alert}).
 
 %% @doc Sends a message to Apple with just a badge
 -spec send_badge(conn_id(), string(), integer()) -> ok.
