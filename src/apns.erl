@@ -159,15 +159,20 @@ send_message(ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs)
                                  extra  = ExtraArgs,
                                  expiry = Expiry,
                                  device_token = DeviceToken}).
-
+-spec send_sync_message(conn_id(), Token::string(), Alert::alert(),
+                   Badge::integer(), Sound::apns_str(), Expiry::non_neg_integer(),
+                   ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
 send_sync_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
-  apns_connection:send_sync_message(ConnId, #apns_msg{id     = message_id(),
-                                                      alert  = Alert, 
-                                                      badge  = Badge,
-                                                      sound  = Sound,
-                                                      extra  = ExtraArgs,
-                                                      expiry = Expiry,
-                                                      device_token = DeviceToken}).
+  send_sync_message(ConnId, #apns_msg{id     = message_id(),
+                                      alert  = Alert,
+                                      badge  = Badge,
+                                      sound  = Sound,
+                                      extra  = ExtraArgs,
+                                      expiry = Expiry,
+                                      device_token = DeviceToken}).
+-spec send_sync_message(conn_id(), #apns_msg{}) -> ok.
+send_sync_message(ConnId, Message) ->
+  apns_connection:send_sync_message(ConnId, Message).
 
 %% @doc  Generates an "unique" and valid message Id
 -spec message_id() -> binary().
