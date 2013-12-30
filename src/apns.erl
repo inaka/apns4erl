@@ -17,7 +17,7 @@
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
          send_message/6, send_message/7, send_message/8]).
--export([send_sync_message/7]).
+-export([send_sync_message/7, send_sync_message/2]).
 -export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
 
