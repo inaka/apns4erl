@@ -232,10 +232,13 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 build_payload(#apns_msg{alert = Alert,
                         badge = Badge,
                         sound = Sound,
-                        extra = Extra}) ->
+                        extra = Extra,
+                        content_available = ContentAvailable}) ->
     build_payload([{alert, Alert},
                    {badge, Badge},
-                   {sound, Sound}], Extra).
+                   {sound, Sound},
+                   {content_available, ContentAvailable}],
+                  Extra).
 
 build_payload(Params, Extra) ->
   apns_mochijson2:encode(

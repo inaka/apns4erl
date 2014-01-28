@@ -18,4 +18,5 @@
                    alert = none                 :: none | apns:alert(),
                    badge = none                 :: none | integer(),
                    sound = none                 :: none | apns:apns_str(),
+                   content_available = none     :: none | integer(),
                    extra = []                   :: [apns_mochijson2:json_property()]}).
