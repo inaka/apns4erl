@@ -237,7 +237,7 @@ build_payload(#apns_msg{alert = Alert,
     build_payload([{alert, Alert},
                    {badge, Badge},
                    {sound, Sound},
-                   {content_available, ContentAvailable}],
+                   {'content-available', ContentAvailable}],
                   Extra).
 
 build_payload(Params, Extra) ->
