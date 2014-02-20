@@ -1,13 +1,13 @@
 RUN := +Bc +K true -smp enable -pa ebin -s crypto -s inets -s ssl
 
 all:
-	rebar get-deps && rebar compile
+	./rebar get-deps && ./rebar compile
 
 compile:
-	rebar compile
+	./rebar compile
 
 clean:
-	rebar clean
+	./rebar clean
 
 build_plt: all
 	dialyzer --verbose --build_plt --apps kernel stdlib erts compiler hipe crypto \
@@ -17,7 +17,7 @@ analyze: all
 	dialyzer --verbose --plt ~/.apns4erl.plt -Werror_handling ebin
 
 xref: all
-	rebar skip_deps=true --verbose xref
+	./rebar skip_deps=true --verbose xref
    
 shell: all
 	if [ -f `hostname`.config ]; then\
@@ -41,5 +41,5 @@ test: all
 	fi
 
 doc: compile
-	rebar skip_deps=true doc
+	./rebar skip_deps=true doc
 
