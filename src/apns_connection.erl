@@ -120,18 +120,36 @@ handle_call(Request, _From, State) ->
 
 %% @hidden
 -spec handle_cast(stop | #apns_msg{}, state()) -> {noreply, state()} | {stop, normal | {error, term()}, state()}.
-handle_cast(Msg, State=#state{out_socket=undefined,connection=Connection}) ->
+handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
+  case int_handle_cast(Msg, State) of
+    {noreply, State1} -> {noreply, State1};
+    Error ->
+      State1 = new_state(Error),
+      Connection = State1#state.connection,
+      case Connection#apns_connection.retry_connection of
+        false -> Error;
+        true  ->
+          timer:sleep(Connection#apns_connection.retry_interval),
+          handle_cast(Msg, State1)
+      end
+    end;
+handle_cast(stop, State) ->
+  {stop, normal, State}.
+
+int_handle_cast(Msg, State=#state{out_socket=undefined,connection=Connection}) ->
   try
     error_logger:info_msg("Reconnecting to APNS...~n"),
     case open_out(Connection) of
-      {ok, Socket} -> handle_cast(Msg, State#state{out_socket=Socket});
+      {ok, Socket} -> 
+          error_logger:info_msg("Connected to APNS...~n"), %%removeme
+          handle_cast(Msg, State#state{out_socket=Socket});
       {error, Reason} -> {stop, Reason}
     end
   catch
     _:{error, Reason2} -> {stop, Reason2}
   end;
 
-handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
+int_handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
   Payload = build_payload(Msg),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
@@ -139,11 +157,13 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
     ok ->
       {noreply, State};
     {error, Reason} ->
-      {stop, {error, Reason}, State}
-  end;
+      {stop, {error, Reason}, State#state{out_socket = undefined}}
+  end.
 
-handle_cast(stop, State) ->
-  {stop, normal, State}.
+new_state({stop, {error, _Reason}, State}) ->
+  State;
+new_state({stop, State}) ->
+  State.
 
 %% @hidden
 -spec handle_info({ssl, tuple(), binary()} | {ssl_closed, tuple()} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
@@ -208,7 +228,12 @@ handle_info(reconnect, State = #state{connection = Connection}) ->
   error_logger:info_msg("Reconnecting the Feedback server...~n"),
   case open_feedback(Connection) of
     {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
-    {error, Reason} -> {stop, {in_closed, Reason}, State}
+    {error, Reason} -> case Connection#apns_connection.retry_connection of 
+          false -> {stop, {in_closed, Reason}, State};
+	  true -> 
+	  _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),
+          {error, State#state{in_socket = undefined}}
+      end
   end;
 
 handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
