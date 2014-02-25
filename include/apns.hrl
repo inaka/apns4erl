@@ -10,7 +10,9 @@
                           feedback_host     = "feedback.sandbox.push.apple.com"     :: string(),
                           feedback_port     = 2196                                  :: integer(),
                           feedback_fun      = fun erlang:display/1                  :: fun(({calendar:datetime(), string()}) -> _),
-                          feedback_timeout  = 30*60*1000                            :: pos_integer()
+                          feedback_timeout  = 30*60*1000                            :: pos_integer(),
+			  retry_connection  = false                                 :: true | false,
+                          retry_interval    = 0                                     :: integer()
                           }).
 -record(apns_msg, {id = apns:message_id()       :: binary(),
                    expiry = apns:expiry(86400)  :: non_neg_integer(), %% default = 1 day
