@@ -15,4 +15,5 @@ admin/log/*.log
 .settings
 *.orig
 doc
-rebar
+rebar.eunit
+.eunit

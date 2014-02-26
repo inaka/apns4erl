@@ -14,7 +14,7 @@
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
--export([build_payload/1]).
+-export([build_payload/1, build_payload/3]).
 
 -record(state, {out_socket        :: tuple(),
                 in_socket         :: tuple(),
@@ -229,6 +229,7 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec build_payload(#apns_msg{}) -> iodata().
 build_payload(#apns_msg{alert = Alert,
                         badge = Badge,
                         sound = Sound,
@@ -239,6 +240,7 @@ build_payload(#apns_msg{alert = Alert,
                    {badge, Badge},
                    {sound, Sound}] ++ Apns_Extra, Extra, Content_Available).
 
+-spec build_payload(proplists:proplist(), proplist:proplist(), boolean()) -> iodata().
 build_payload(Params, Extra, Content_Available) ->
   apns_mochijson2:encode({[{<<"aps">>,
                             do_build_payload(Params, Content_Available)} | Extra]}).
@@ -288,8 +290,8 @@ send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
-    error_logger:info_msg("Sending msg ~p (expires on ~p)~n",
-                         [MsgId, Expiry]),
+    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
+                         [MsgId, Expiry, BinPayload, Packet]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
