@@ -18,6 +18,7 @@
 -export([send_badge/3, send_message/2, send_message/3, send_message/4, send_message/5,
          send_message/6, send_message/7, send_message/8]).
 -export([send_content_available/2, send_content_available/3]).
+-export([send_sync_message/7, send_sync_message/2]).
 -export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
 
@@ -172,6 +173,20 @@ send_message(ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs)
                                  extra  = ExtraArgs,
                                  expiry = Expiry,
                                  device_token = DeviceToken}).
+-spec send_sync_message(conn_id(), Token::string(), Alert::alert(),
+                   Badge::integer(), Sound::apns_str(), Expiry::non_neg_integer(),
+                   ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+send_sync_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
+  send_sync_message(ConnId, #apns_msg{id     = message_id(),
+                                      alert  = Alert,
+                                      badge  = Badge,
+                                      sound  = Sound,
+                                      extra  = ExtraArgs,
+                                      expiry = Expiry,
+                                      device_token = DeviceToken}).
+-spec send_sync_message(conn_id(), #apns_msg{}) -> ok.
+send_sync_message(ConnId, Message) ->
+  apns_connection:send_sync_message(ConnId, Message).
 
 %% @doc  Generates an "unique" and valid message Id
 -spec message_id() -> binary().
