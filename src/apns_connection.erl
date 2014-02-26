@@ -16,6 +16,7 @@
 -export([send_message/2, stop/1]).
 -export([send_sync_message/2]).
 -export([build_payload/1, build_payload/3]).
+-export([measure_size/1]).
 
 -record(state, {out_socket        :: tuple(),
                 in_socket         :: tuple(),
@@ -27,6 +28,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Public API
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec measure_size(#apns_msg{}) -> pos_integer().
+measure_size(Msg) -> erlang:size(erlang:iolist_to_binary(build_payload(Msg))).
 
 %% @doc  Sends a message to apple through the connection
 -spec send_message(apns:conn_id(), #apns_msg{}) -> ok.
@@ -121,6 +125,7 @@ open_feedback(Connection) ->
   end.
 
 %% @hidden
+-spec handle_call({sync, #apns_msg{}} | X, reference(), state()) -> {reply, {ok, binary()} | {error, term()}, state()} | {stop, {unknown_request, X}, {unknown_request, X}, state()}.
 handle_call({sync, Msg}, _From, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
   Payload = build_payload(Msg),
