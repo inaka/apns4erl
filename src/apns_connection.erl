@@ -272,8 +272,16 @@ do_build_payload([{Key,Value}|Params], Payload) ->
                               none -> [];
                               Image -> [{<<"launch-image">>, unicode:characters_to_binary(Image)}]
                             end ++
-                [{<<"loc-key">>, unicode:characters_to_binary(LocKey)},
-                 {<<"loc-args">>, lists:map(fun unicode:characters_to_binary/1, Args)}]},
+               case LocKey of 
+                 "" -> [];
+                 _ -> [{<<"loc-key">>, unicode:characters_to_binary(LocKey)}]
+               end  ++
+           
+               case Args of 
+                 [] -> [];
+                 _ -> [{<<"loc-args">>, lists:map(fun unicode:characters_to_binary/1, Args)}]
+               end 
+              },
       do_build_payload(Params, [{atom_to_binary(Key, utf8), Json} | Payload]);
     _ ->
       do_build_payload(Params,Payload)
@@ -290,8 +298,6 @@ send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
-    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
-                         [MsgId, Expiry, BinPayload, Packet]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
