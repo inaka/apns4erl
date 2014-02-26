@@ -53,6 +53,8 @@ start_link(Connection) ->
 %% @hidden
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
+  % IRCCloud patch: add a delay before restarting
+  timer:sleep(500),
   try
     case open_out(Connection) of
       {ok, OutSocket} -> case open_feedback(Connection) of
