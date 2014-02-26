@@ -201,7 +201,7 @@ handle_info( {ssl, SslSocket, Data}
           Status = parse_status(StatusCode),
           {_MsgFailed, RestMsg} = apns_queue:fail(State#state.queue, MsgId),
           [send_message(self(), M) || M <- RestMsg],
-          try Error(MsgId, Status) of
+          try call(Error, [MsgId, Status]) of
             stop -> throw({stop, {msg_error, MsgId, Status}, State});
             _ -> noop
           catch
@@ -234,7 +234,7 @@ handle_info( {ssl, SslSocket, Data}
       Length:2/big-unsigned-integer-unit:8,
       Token:Length/binary,
       Rest/binary>> ->
-      try Feedback({apns:timestamp(TimeT), bin_to_hexstr(Token)})
+      try call(Feedback, [{apns:timestamp(TimeT), bin_to_hexstr(Token)}])
       catch
         _:Error ->
           error_logger:error_msg(
@@ -384,3 +384,9 @@ build_frame(MsgId, Expiry, BinToken, Payload, Priority) ->
 epoch() ->
   {M,S,_} = os:timestamp(),
   M * 1000000 + S.
+
+call(Fun, Args) when is_function(Fun), is_list(Args) ->
+    apply(Fun, Args);
+call({M,F}, Args) when is_list(Args) ->
+    apply(M,F,Args).
+
