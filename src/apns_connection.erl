@@ -122,13 +122,15 @@ handle_call(Request, _From, State) ->
 
 %% @hidden
 -spec handle_cast(stop | #apns_msg{}, state()) -> {noreply, state()} | {stop, normal | {error, term()}, state()}.
-handle_cast(Msg, State) when State#state.empty =:= false ->
+handle_cast(Msg, State = #state{empty = false}) ->
   {noreply, queue_msg(Msg, State)};
 
 handle_cast(Msg, State = #state{out_socket = undefined}) ->
   case handle_info(reconnect_out, State) of
     {noreply, State1} -> handle_cast(Msg, State1);
-    Error -> Error
+    Error -> 
+      queue_msg(Msg, State),
+      Error
   end;
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
@@ -146,43 +148,6 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
 
 handle_cast(stop, State) ->
   {stop, normal, State}.
-
--spec send_msg(#apns_msg{}, state()) -> ok | {error, term()}.
-send_msg(Msg, #state{out_socket=Socket}) ->
-  Payload = build_payload(Msg),
-  BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
-  send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload).
-
--spec queue_msg(#apns_msg{}, state()) -> state().
-queue_msg(Msg, State) ->
-  State#state{msg_queue=queue:in(Msg, State#state.msg_queue), empty=false}.
-
--spec drain_queue(state()) -> state().
-drain_queue(State) when State#state.empty ->
-  State;
-
-drain_queue(State=#state{msg_queue = Queue}) ->
-  case queue:peek(State#state.msg_queue) of
-    empty -> State#state{empty = true};
-    {value, Msg} -> 
-      case send_msg(Msg, State#state.out_socket) of
-        ok -> %% Keep going
-          Queue = queue:drop(State#state.msg_queue),
-          drain_queue(State#state{msg_queue = Queue});
-        {error, Reason} -> 
-          error_logger:info_msg("Error:~p sending message:~p to APNS. ~n", [Reason, Msg#apns_msg.id]),
-          State
-      end
-  end.
-
--spec retry_later(out|feedback, state()) -> state().
-retry_later(out, State = #state{connection = Connection}) ->
-  _Timer = erlang:send_after(Connection#apns_connection.retry_interval, self(), reconnect_out),
-  State#state{out_socket=undefined};
-
-retry_later(feedback, State = #state{connection = Connection}) ->
-  _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect_feedback),
-  State#state{in_socket = undefined}.
 
 %% @hidden
 -spec handle_info({ssl, tuple(), binary()} | {ssl_closed, tuple()} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
@@ -294,6 +259,43 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec send_msg(#apns_msg{}, state()) -> ok | {error, term()}.
+send_msg(Msg, #state{out_socket=Socket}) ->
+  Payload = build_payload(Msg),
+  BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
+  send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload).
+
+-spec queue_msg(#apns_msg{}, state()) -> state().
+queue_msg(Msg, State) ->
+  State#state{msg_queue=queue:in(Msg, State#state.msg_queue), empty=false}.
+
+-spec drain_queue(state()) -> state().
+drain_queue(State = #state{empty = true}) ->
+  State;
+
+drain_queue(State=#state{msg_queue = Queue}) ->
+  case queue:peek(State#state.msg_queue) of
+    empty -> State#state{empty = true};
+    {value, Msg} -> 
+      case send_msg(Msg, State#state.out_socket) of
+        ok -> %% Keep going
+          Queue = queue:drop(State#state.msg_queue),
+          drain_queue(State#state{msg_queue = Queue});
+        {error, Reason} -> 
+          error_logger:info_msg("Error:~p sending message:~p to APNS. ~n", [Reason, Msg#apns_msg.id]),
+          State
+      end
+  end.
+
+-spec retry_later(out|feedback, state()) -> state().
+retry_later(out, State = #state{connection = Connection}) ->
+  _Timer = erlang:send_after(Connection#apns_connection.retry_interval, self(), reconnect_out),
+  State#state{out_socket=undefined};
+
+retry_later(feedback, State = #state{connection = Connection}) ->
+  _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect_feedback),
+  State#state{in_socket = undefined}.
+
 build_payload(#apns_msg{alert = Alert,
                         badge = Badge,
                         sound = Sound,
