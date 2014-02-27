@@ -20,7 +20,9 @@
                 in_socket         :: tuple(),
                 connection        :: #apns_connection{},
                 in_buffer = <<>>  :: binary(),
-                out_buffer = <<>> :: binary()}).
+                out_buffer = <<>> :: binary(),
+                msg_queue         :: queue(),
+                empty = true      :: true | false}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -56,7 +58,7 @@ init(Connection) ->
   try
     case open_out(Connection) of
       {ok, OutSocket} -> case open_feedback(Connection) of
-          {ok, InSocket} -> {ok, #state{out_socket=OutSocket, in_socket=InSocket, connection=Connection}};
+          {ok, InSocket} -> {ok, #state{out_socket=OutSocket, in_socket=InSocket, connection=Connection, msg_queue=queue:new(), empty=true}};
           {error, Reason} -> {stop, Reason}
         end;
       {error, Reason} -> {stop, Reason}
@@ -120,50 +122,67 @@ handle_call(Request, _From, State) ->
 
 %% @hidden
 -spec handle_cast(stop | #apns_msg{}, state()) -> {noreply, state()} | {stop, normal | {error, term()}, state()}.
+handle_cast(Msg, State) when State#state.empty =:= false ->
+  {noreply, queue_msg(Msg, State)};
+
+handle_cast(Msg, State = #state{out_socket = undefined}) ->
+  case handle_info(reconnect_out, State) of
+    {noreply, State1} -> handle_cast(Msg, State1);
+    Error -> Error
+  end;
+
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
-  case int_handle_cast(Msg, State) of
-    {noreply, State1} -> {noreply, State1};
-    Error ->
-      State1 = new_state(Error),
-      Connection = State1#state.connection,
+  case send_msg(Msg, State) of
+    ok -> {noreply, State};
+    {error, Reason} -> 
+      Connection = State#state.connection,
       case Connection#apns_connection.retry_connection of
-        false -> Error;
-        true  ->
-          timer:sleep(Connection#apns_connection.retry_interval),
-          handle_cast(Msg, State1)
+        false -> {stop, {error, Reason}, State};
+        true -> 
+          State1 = queue_msg(Msg, State),
+          {noreply, retry_later(out, State1)} 
       end
-    end;
+  end;
+
 handle_cast(stop, State) ->
   {stop, normal, State}.
 
-int_handle_cast(Msg, State=#state{out_socket=undefined,connection=Connection}) ->
-  try
-    error_logger:info_msg("Reconnecting to APNS...~n"),
-    case open_out(Connection) of
-      {ok, Socket} -> 
-          error_logger:info_msg("Connected to APNS...~n"), %%removeme
-          handle_cast(Msg, State#state{out_socket=Socket});
-      {error, Reason} -> {stop, Reason}
-    end
-  catch
-    _:{error, Reason2} -> {stop, Reason2}
-  end;
-
-int_handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
-  Socket = State#state.out_socket,
+-spec send_msg(#apns_msg{}, state()) -> ok | {error, term()}.
+send_msg(Msg, #state{out_socket=Socket}) ->
   Payload = build_payload(Msg),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
-  case send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload) of
-    ok ->
-      {noreply, State};
-    {error, Reason} ->
-      {stop, {error, Reason}, State#state{out_socket = undefined}}
+  send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload).
+
+-spec queue_msg(#apns_msg{}, state()) -> state().
+queue_msg(Msg, State) ->
+  State#state{msg_queue=queue:in(Msg, State#state.msg_queue), empty=false}.
+
+-spec drain_queue(state()) -> state().
+drain_queue(State) when State#state.empty ->
+  State;
+
+drain_queue(State=#state{msg_queue = Queue}) ->
+  case queue:peek(State#state.msg_queue) of
+    empty -> State#state{empty = true};
+    {value, Msg} -> 
+      case send_msg(Msg, State#state.out_socket) of
+        ok -> %% Keep going
+          Queue = queue:drop(State#state.msg_queue),
+          drain_queue(State#state{msg_queue = Queue});
+        {error, Reason} -> 
+          error_logger:info_msg("Error:~p sending message:~p to APNS. ~n", [Reason, Msg#apns_msg.id]),
+          State
+      end
   end.
 
-new_state({stop, {error, _Reason}, State}) ->
-  State;
-new_state({stop, State}) ->
-  State.
+-spec retry_later(out|feedback, state()) -> state().
+retry_later(out, State = #state{connection = Connection}) ->
+  _Timer = erlang:send_after(Connection#apns_connection.retry_interval, self(), reconnect_out),
+  State#state{out_socket=undefined};
+
+retry_later(feedback, State = #state{connection = Connection}) ->
+  _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect_feedback),
+  State#state{in_socket = undefined}.
 
 %% @hidden
 -spec handle_info({ssl, tuple(), binary()} | {ssl_closed, tuple()} | X, state()) -> {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
@@ -221,19 +240,40 @@ handle_info({ssl_closed, SslSocket}, State = #state{in_socket = SslSocket,
                                                     connection= Connection}) ->
   error_logger:info_msg("Feedback server disconnected. Waiting ~p millis to connect again...~n",
                         [Connection#apns_connection.feedback_timeout]),
-  _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),
-  {noreply, State#state{in_socket = undefined}};
+  {noreply, retry_later(feedback, State)};
 
-handle_info(reconnect, State = #state{connection = Connection}) ->
+handle_info(reconnect_feedback, State = #state{connection = Connection}) ->
   error_logger:info_msg("Reconnecting the Feedback server...~n"),
-  case open_feedback(Connection) of
-    {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
-    {error, Reason} -> case Connection#apns_connection.retry_connection of 
+  try
+    case open_feedback(Connection) of
+      {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
+      {error, Reason} -> case Connection#apns_connection.retry_connection of 
           false -> {stop, {in_closed, Reason}, State};
-	  true -> 
-	  _Timer = erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),
-          {error, State#state{in_socket = undefined}}
-      end
+          true -> {noreply, retry_later(feedback, State)}
+        end
+    end
+  catch
+    _:{error, Reason2} -> {stop, {out_closed, Reason2}, State}
+  end;
+
+handle_info(reconnect_out, State = #state{out_socket = undefined, connection = Connection}) ->
+  error_logger:info_msg("Reconnecting to APNS server...~n"),
+  try
+    case open_out(Connection) of
+      {ok, OutSocket} -> 
+        error_logger:info_msg("Connected to APNS server.~n"),
+        State1 = drain_queue(State#state{out_socket = OutSocket}),
+        case State1#state.empty of
+          false -> {noreply, retry_later(out, State1)}; %% A non empty queue means retry_connection is set
+          true -> {noreply, State1}
+        end;
+      {error, Reason} -> case Connection#apns_connection.retry_connection of 
+          false -> {stop, {out_closed, Reason}, State};
+          true -> {noreply, retry_later(out, State)}
+        end
+    end
+  catch
+    _:{error, Reason2} -> {stop, {out_closed, Reason2}, State}
   end;
 
 handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
