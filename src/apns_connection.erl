@@ -127,10 +127,11 @@ handle_cast(Msg, State = #state{empty = false}) ->
 
 handle_cast(Msg, State = #state{out_socket = undefined}) ->
   case handle_info(reconnect_out, State) of
-    {noreply, State1} -> handle_cast(Msg, State1);
-    Error -> 
-      queue_msg(Msg, State),
-      Error
+    {noreply, State1} -> case State1#state.out_socket of
+          undefined -> {noreply, queue_msg(Msg, State1)};
+          _OutSocket -> handle_cast(Msg, State1)
+        end;
+    Error -> Error
   end;
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
