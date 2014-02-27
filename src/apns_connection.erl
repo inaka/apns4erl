@@ -22,7 +22,7 @@
                 in_buffer = <<>>  :: binary(),
                 out_buffer = <<>> :: binary(),
                 msg_queue         :: queue(),
-                empty = true      :: true | false}).
+                empty = true      :: boolean()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
