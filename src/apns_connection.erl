@@ -55,6 +55,14 @@ start_link(Connection) ->
 %% @hidden
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
+  case Connection#apns_connection.delay_connection of
+    true ->
+      {_Result, State} = handle_info(reconnect_feedback, #state{connection = Connection, msg_queue = queue:new(), empty = true}),
+      {ok, State};
+    false -> open_connections(Connection)
+  end.
+%% @hidden
+open_connections(Connection) ->
   try
     case open_out(Connection) of
       {ok, OutSocket} -> case open_feedback(Connection) of
