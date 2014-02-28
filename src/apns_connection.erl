@@ -22,7 +22,8 @@
                 in_buffer = <<>>  :: binary(),
                 out_buffer = <<>> :: binary(),
                 msg_queue         :: queue(),
-                empty = true      :: boolean()}).
+                empty = true      :: boolean(),
+                connect_init      :: boolean()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,16 +56,13 @@ start_link(Connection) ->
 %% @hidden
 -spec init(#apns_connection{}) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
-  try
-    case open_out(Connection) of
-      {ok, OutSocket} -> case open_feedback(Connection) of
-          {ok, InSocket} -> {ok, #state{out_socket=OutSocket, in_socket=InSocket, connection=Connection, msg_queue=queue:new(), empty=true}};
-          {error, Reason} -> {stop, Reason}
-        end;
-      {error, Reason} -> {stop, Reason}
-    end
-  catch
-    _:{error, Reason2} -> {stop, Reason2}
+  State = #state{connection = Connection, msg_queue = queue:new(), empty = true, connect_init = false},
+  case Connection#apns_connection.delay_connection of
+    true -> {ok, State};
+    false -> case open_connections(State) of
+        {noreply, State1} -> {ok, State1};
+        {stop, {_, Reason}, _State} -> {stop, Reason}
+      end
   end.
 
 %% @hidden
@@ -125,14 +123,11 @@ handle_call(Request, _From, State) ->
 handle_cast(Msg, State = #state{empty = false}) ->
   {noreply, queue_msg(Msg, State)};
 
+handle_cast(Msg, State = #state{connect_init = false}) ->
+  after_reconnect_out(open_connections(State), Msg);
+
 handle_cast(Msg, State = #state{out_socket = undefined}) ->
-  case handle_info(reconnect_out, State) of
-    {noreply, State1} -> case State1#state.out_socket of
-          undefined -> {noreply, queue_msg(Msg, State1)};
-          _OutSocket -> handle_cast(Msg, State1)
-        end;
-    Error -> Error
-  end;
+  after_reconnect_out(handle_info(reconnect_out, State), Msg);
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   case send_msg(Msg, State) of
@@ -260,6 +255,23 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% @hidden
+-spec open_connections(state()) -> {noreply, state()} | {stop, {atom(), term()}, state()}.
+open_connections(State) ->
+  case handle_info(reconnect_feedback, State#state{connect_init = true}) of
+    {noreply, State2} -> handle_info(reconnect_out, State2);
+    Error -> Error
+  end.
+
+after_reconnect_out(Result, Msg) ->
+  case Result of
+    {noreply, State} -> case State#state.out_socket of
+        undefined -> {noreply, queue_msg(Msg, State)};
+        _OutSocket -> handle_cast(Msg, State)
+      end;
+    Error -> Error
+  end.
+
 -spec send_msg(#apns_msg{}, state()) -> ok | {error, term()}.
 send_msg(Msg, #state{out_socket=Socket}) ->
   Payload = build_payload(Msg),
