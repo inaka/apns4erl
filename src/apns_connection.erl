@@ -130,7 +130,7 @@ handle_cast(Msg, State = #state{out_socket = undefined}) ->
   after_reconnect_out(handle_info(reconnect_out, State), Msg);
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
-  case send_msg(Msg, State) of
+  case send_msg(Msg, State#state.out_socket) of
     ok -> {noreply, State};
     {error, Reason} -> 
       Connection = State#state.connection,
@@ -241,6 +241,12 @@ handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
   error_logger:info_msg("APNS disconnected~n"),
   {noreply, State#state{out_socket=undefined}};
 
+%% Ignore ssl_closed if a reconnect is in progress (non empty queue triggers reconnect)
+handle_info({ssl_closed, _SslSocket}, State = #state{out_socket = undefined,
+                                                     connection = #apns_connection{retry_connection = true},
+                                                     empty = false}) ->
+  {noreply, State};
+
 handle_info(Request, State) ->
   {stop, {unknown_request, Request}, State}.
 
@@ -272,8 +278,8 @@ after_reconnect_out(Result, Msg) ->
     Error -> Error
   end.
 
--spec send_msg(#apns_msg{}, state()) -> ok | {error, term()}.
-send_msg(Msg, #state{out_socket=Socket}) ->
+-spec send_msg(#apns_msg{}, tuple()) -> ok | {error, term()}.
+send_msg(Msg, Socket) ->
   Payload = build_payload(Msg),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
   send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload).
@@ -287,13 +293,13 @@ drain_queue(State = #state{empty = true}) ->
   State;
 
 drain_queue(State=#state{msg_queue = Queue}) ->
-  case queue:peek(State#state.msg_queue) of
+  case queue:peek(Queue) of
     empty -> State#state{empty = true};
     {value, Msg} -> 
       case send_msg(Msg, State#state.out_socket) of
         ok -> %% Keep going
-          Queue = queue:drop(State#state.msg_queue),
-          drain_queue(State#state{msg_queue = Queue});
+          QueueN = queue:drop(Queue),
+          drain_queue(State#state{msg_queue = QueueN});
         {error, Reason} -> 
           error_logger:info_msg("Error:~p sending message:~p to APNS. ~n", [Reason, Msg#apns_msg.id]),
           State
