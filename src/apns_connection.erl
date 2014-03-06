@@ -241,7 +241,10 @@ handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
   error_logger:info_msg("APNS disconnected~n"),
   {noreply, State#state{out_socket=undefined}};
 
-handle_info({ssl_closed, _SslSocket}, State = #state{connection = #apns_connection{retry_connection = true}}) ->
+%% Ignore ssl_closed if a reconnect is in progress (non empty queue triggers reconnect)
+handle_info({ssl_closed, _SslSocket}, State = #state{out_socket = undefined,
+                                                     connection = #apns_connection{retry_connection = true},
+                                                     empty = false}) ->
   {noreply, State};
 
 handle_info(Request, State) ->
