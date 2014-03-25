@@ -19,7 +19,8 @@
                 in_socket         :: tuple(),
                 connection        :: apns:connection(),
                 in_buffer = <<>>  :: binary(),
-                out_buffer = <<>> :: binary()}).
+                out_buffer = <<>> :: binary(),
+                queue             :: pid()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -68,12 +69,14 @@ build_payload(Msg) ->
 -spec init(apns:connection()) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
   try
+    {ok, QID} = apns_queue:start_link(),
     case open_out(Connection) of
       {ok, OutSocket} -> case open_feedback(Connection) of
           {ok, InSocket} ->
             {ok, #state{ out_socket = OutSocket
                        , in_socket  = InSocket
                        , connection = Connection
+                       , queue      = QID
                        }};
           {error, Reason} -> {stop, Reason}
         end;
@@ -156,11 +159,13 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
   Payload = build_payload(Msg),
   BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
+  apns_queue:in(State#state.queue, Msg),
   case send_payload(
         Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload, Msg#apns_msg.priority) of
     ok ->
       {noreply, State};
     {error, Reason} ->
+      apns_queue:fail(State#state.queue, Msg#apns_msg.id),
       {stop, {error, Reason}, State}
   end;
 
@@ -181,6 +186,8 @@ handle_info( {ssl, SslSocket, Data}
       case Command of
         8 -> %% Error
           Status = parse_status(StatusCode),
+          {_MsgFailed, RestMsg} = apns_queue:fail(State#state.queue, MsgId),
+          [send_message(self(), M) || M <- RestMsg],
           try Error(MsgId, Status) of
             stop -> throw({stop, {msg_error, MsgId, Status}, State});
             _ -> noop
