@@ -211,6 +211,7 @@ default_connection() ->
                               apple_port      = get_env(apple_port,       DefaultConn#apns_connection.apple_port),
                               key_file        = get_env(key_file,         DefaultConn#apns_connection.key_file),
                               cert_file       = get_env(cert_file,        DefaultConn#apns_connection.cert_file),
+                              cert_password   = get_env(cert_password,	  DefaultConn#apns_connection.cert_password),
                               timeout         = get_env(timeout,          DefaultConn#apns_connection.timeout),
                               error_fun       = case get_env(error_fun,   DefaultConn#apns_connection.error_fun) of
                                                   {M, F} -> fun(I, S) -> M:F(I, S) end;
