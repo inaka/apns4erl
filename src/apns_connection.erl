@@ -318,4 +318,5 @@ parse_status(5) -> missing_token_size;
 parse_status(6) -> missing_topic_size;
 parse_status(7) -> missing_payload_size;
 parse_status(8) -> invalid_token;
+parse_status(10) -> shutdown;
 parse_status(_) -> unknown.
