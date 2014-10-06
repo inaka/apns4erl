@@ -234,10 +234,12 @@ build_payload(#apns_msg{alert = Alert,
                         sound = Sound,
                         apns_extra=Apns_Extra,
                         content_available = Content_Available,
-                        extra = Extra}) ->
+                        extra = Extra,
+                        category = Category}) ->
     build_payload([{alert, Alert},
                    {badge, Badge},
-                   {sound, Sound}] ++ Apns_Extra, Extra, Content_Available).
+                   {sound, Sound},
+                   {category, Category}] ++ Apns_Extra, Extra, Content_Available).
 
 build_payload(Params, Extra, Content_Available) ->
   apns_mochijson2:encode({[{<<"aps">>,
