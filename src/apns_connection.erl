@@ -232,17 +232,23 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 build_payload(#apns_msg{alert = Alert,
                         badge = Badge,
                         sound = Sound,
-                        extra = Extra,
-                        content_available = ContentAvailable}) ->
+                        apns_extra=Apns_Extra,
+                        content_available = Content_Available,
+                        extra = Extra}) ->
     build_payload([{alert, Alert},
                    {badge, Badge},
-                   {sound, Sound},
-                   {'content-available', ContentAvailable}],
-                  Extra).
+                   {sound, Sound}] ++ Apns_Extra, Extra, Content_Available).
 
-build_payload(Params, Extra) ->
-  apns_mochijson2:encode(
-    {[{<<"aps">>, do_build_payload(Params, [])} | Extra]}).
+build_payload(Params, Extra, Content_Available) ->
+  apns_mochijson2:encode({[{<<"aps">>,
+                            do_build_payload(Params, Content_Available)} | Extra]}).
+
+do_build_payload(Params, Content_Available) when Content_Available ->
+  do_build_payload(Params, [{<<"content-available">>, 1}]);
+
+do_build_payload(Params, Content_Available) when Content_Available == false ->
+  do_build_payload(Params, []);
+
 do_build_payload([{Key,Value}|Params], Payload) ->
   case Value of
     Value when is_list(Value); is_binary(Value) ->
@@ -282,8 +288,8 @@ send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
                 BinToken/binary,
                 PayloadLength:16/big,
                 BinPayload/binary>>],
-    error_logger:info_msg("Sending msg ~p (expires on ~p):~s~n~p~n",
-                         [MsgId, Expiry, BinPayload, Packet]),
+    error_logger:info_msg("Sending msg ~p (expires on ~p)~n",
+                         [MsgId, Expiry]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->

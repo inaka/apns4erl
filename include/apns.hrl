@@ -15,8 +15,9 @@
 -record(apns_msg, {id = apns:message_id()       :: binary(),
                    expiry = apns:expiry(86400)  :: non_neg_integer(), %% default = 1 day
                    device_token                 :: string(),
+                   content_available = false    :: boolean(),
                    alert = none                 :: none | apns:alert(),
                    badge = none                 :: none | integer(),
                    sound = none                 :: none | apns:apns_str(),
-                   content_available = none     :: none | integer(),
+                   apns_extra = []              :: none | [{atom(), integer()|boolean()|string()}],
                    extra = []                   :: [apns_mochijson2:json_property()]}).
