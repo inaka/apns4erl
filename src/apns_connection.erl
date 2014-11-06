@@ -67,13 +67,24 @@ init(Connection) ->
 
 %% @hidden
 open_out(Connection) ->
-  KeyFile = case Connection#apns_connection.key_file of
+  Opts = case Connection#apns_connection.key_file of
     undefined -> [];
-    Filename -> [{keyfile, filename:absname(Filename)}]
-  end,
+    KeyFile -> [{keyfile, filename:absname(KeyFile)}]
+  end ++
+    case Connection#apns_connection.cert_file of
+      undefined -> [];
+      CertFile -> [{certfile, filename:absname(CertFile)}]
+    end ++
+    case Connection#apns_connection.key of
+      undefined -> [];
+      Key -> [{key, Key}]
+    end ++
+    case Connection#apns_connection.cert of
+      undefined -> [];
+      Cert -> [{cert, Cert}]
+    end,
   SslOpts = [
-    {certfile, filename:absname(Connection#apns_connection.cert_file)},
-    {mode, binary} | KeyFile
+    {mode, binary} | Opts
   ],
   RealSslOpts = case Connection#apns_connection.cert_password of
     undefined -> SslOpts;
