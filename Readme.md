@@ -102,3 +102,26 @@ If there were no errors, but Apple reported that the user removed the applicatio
     handle_apns_delete_subscription(Data) ->
       error_logger:info_msg("delete subscription: ~p~n", [Data]).
 ```
+
+Passing Keys and Certificates Directly
+======================================
+
+By default, the private key and certificate to use to connect to
+Apple's servers are loaded out of the PEM-encoded files specified in
+`cert_file` and `key_file`. However, if you prefer to store these
+elsewhere and load them manually, you can pass DER-encoded binaries
+when connecting:
+
+```erlang
+    CertBin = <<"-----BEGIN CERTIFICATE-----"...>>, % perhaps from a database
+    KeyBin = <<"-----BEGIN RSA PRIVATE KEY-----"...>>,
+    [{'Certificate', CertDER, not_encrypted}] = public_key:pem_decode(CertBin),
+    [{'RSAPrivateKey', KeyDER, not_encrypted}] = public_key:pem_decode(KeyBin),
+    Connection = #apns_connection{cert_file=undefined,
+                                  cert=CertDER,
+                                  key={'RSAPrivateKey', KeyDER}},
+    apns:connect(Connection).
+```
+
+If you store your key and certificate as DER binaries, you can pass
+them directly without any decoding.
