@@ -66,23 +66,35 @@ init(Connection) ->
   end.
 
 %% @hidden
-open_out(Connection) ->
-  KeyFile = case Connection#apns_connection.key_file of
+ssl_opts(Connection) ->
+  Opts = case Connection#apns_connection.key_file of
     undefined -> [];
-    Filename -> [{keyfile, filename:absname(Filename)}]
-  end,
-  SslOpts = [
-    {certfile, filename:absname(Connection#apns_connection.cert_file)},
-    {mode, binary} | KeyFile
-  ],
-  RealSslOpts = case Connection#apns_connection.cert_password of
-    undefined -> SslOpts;
-    Password -> [{password, Password} | SslOpts]
-  end,
+    KeyFile -> [{keyfile, filename:absname(KeyFile)}]
+  end ++
+    case Connection#apns_connection.cert_file of
+      undefined -> [];
+      CertFile -> [{certfile, filename:absname(CertFile)}]
+    end ++
+    case Connection#apns_connection.key of
+      undefined -> [];
+      Key -> [{key, Key}]
+    end ++
+    case Connection#apns_connection.cert of
+      undefined -> [];
+      Cert -> [{cert, Cert}]
+    end ++
+    case Connection#apns_connection.cert_password of
+      undefined -> [];
+      Password -> [{password, Password}]
+    end,
+  [{mode, binary} | Opts].
+
+%% @hidden
+open_out(Connection) ->
   case ssl:connect(
     Connection#apns_connection.apple_host,
     Connection#apns_connection.apple_port,
-    RealSslOpts,
+    ssl_opts(Connection),
     Connection#apns_connection.timeout
   ) of
     {ok, OutSocket} -> {ok, OutSocket};
@@ -91,22 +103,10 @@ open_out(Connection) ->
 
 %% @hidden
 open_feedback(Connection) ->
-  KeyFile = case Connection#apns_connection.key_file of
-    undefined -> [];
-    Filename -> [{keyfile, filename:absname(Filename)}]
-  end,
-  SslOpts = [
-    {certfile, filename:absname(Connection#apns_connection.cert_file)},
-    {mode, binary} | KeyFile
-  ],
-  RealSslOpts = case Connection#apns_connection.cert_password of
-    undefined -> SslOpts;
-    Password -> [{password, Password} | SslOpts]
-  end,
   case ssl:connect(
     Connection#apns_connection.feedback_host,
     Connection#apns_connection.feedback_port,
-    RealSslOpts,
+    ssl_opts(Connection),
     Connection#apns_connection.timeout
   ) of
     {ok, InSocket} -> {ok, InSocket};
