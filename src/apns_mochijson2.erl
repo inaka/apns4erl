@@ -1,5 +1,4 @@
 %% @author Bob Ippolito <bob@mochimedia.com>
-%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
 %% @copyright 2007 Mochi Media, Inc.
 %% @end
 %%
@@ -29,7 +28,8 @@
 
 -module(apns_mochijson2).
 -author('bob@mochimedia.com').
--author('Fernando Benavides <fernando.benavides@inakanetworks.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
+
 -export([encoder/1, encode/1]).
 -export([decoder/1, decode/1]).
 -export([get_value/2, get_value/3]).

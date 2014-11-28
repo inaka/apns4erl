@@ -32,7 +32,9 @@
 %% Design and Implementation.
 
 -module(apns_mochinum).
--author("Bob Ippolito <bob@mochimedia.com>").
+-author('Bob Ippolito <bob@mochimedia.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
+
 -export([digits/1, frexp/1, int_pow/2, int_ceil/1, test/0]).
 
 %% IEEE 754 Float exponent bias

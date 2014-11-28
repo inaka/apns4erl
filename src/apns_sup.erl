@@ -1,11 +1,10 @@
 %%%-------------------------------------------------------------------
 %%% @hidden
-%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
 %%% @doc apns4erl main supervisor
 %%% @end
 %%%-------------------------------------------------------------------
 -module(apns_sup).
--author('Fernando Benavides <fernando.benavides@inakanetworks.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
 
 -behaviour(supervisor).
 

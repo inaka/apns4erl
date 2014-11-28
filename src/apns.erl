@@ -1,11 +1,10 @@
 %%-------------------------------------------------------------------
-%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
-%% @copyright (C) 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
 %% @doc Apple Push Notification Server for Erlang
 %% @end
 %%-------------------------------------------------------------------
 -module(apns).
--vsn('1.0').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
+-vsn('1.0.2').
 
 -include("apns.hrl").
 -include("localized.hrl").

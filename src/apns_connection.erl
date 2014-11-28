@@ -1,10 +1,9 @@
 %%%-------------------------------------------------------------------
-%%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
 %%% @doc apns4erl connection process
 %%% @end
 %%%-------------------------------------------------------------------
 -module(apns_connection).
--author('Fernando Benavides <fernando.benavides@inakanetworks.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
 
 -behaviour(gen_server).
 

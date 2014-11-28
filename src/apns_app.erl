@@ -1,11 +1,6 @@
-%%%-------------------------------------------------------------------
 %%% @hidden
-%%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
-%%% @doc Apple Push Notification Server for Erlang
-%%% @end
-%%%-------------------------------------------------------------------
 -module(apns_app).
--author('Fernando Benavides <fernando.benavides@inakanetworks.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
 
 -behaviour(application).
 

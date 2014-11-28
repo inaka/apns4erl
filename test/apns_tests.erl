@@ -1,4 +1,5 @@
 -module(apns_tests).
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
 
 -include("apns.hrl").
 -include("localized.hrl").
