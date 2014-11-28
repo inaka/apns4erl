@@ -1,3 +1,0 @@
-{application,apns}.
-{packages,[]}.
-{modules,[apns,apns_connection,apns_mochijson2,apns_mochinum]}.
