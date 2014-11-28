@@ -264,7 +264,7 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 build_payload(Params, Extra, Content_Available) ->
-  apns_mochijson2:encode(
+  jiffy:encode(
     {[{<<"aps">>, do_build_payload(Params, Content_Available)} | Extra]}).
 
 do_build_payload(Params, Content_Available) when Content_Available ->
@@ -312,16 +312,15 @@ do_build_payload([{Key, Value} | Params], Payload) ->
 do_build_payload([], Payload) ->
   {Payload}.
 
--spec send_payload(tuple(), binary(), non_neg_integer(), binary(), iolist()) ->
+-spec send_payload(tuple(), binary(), non_neg_integer(), binary(), binary()) ->
   ok | {error, term()}.
 send_payload(Socket, MsgId, Expiry, BinToken, Payload) ->
-    BinPayload = list_to_binary(Payload),
-    PayloadLength = erlang:size(BinPayload),
+    PayloadLength = erlang:size(Payload),
     Packet = [<<1:8, MsgId/binary, Expiry:4/big-unsigned-integer-unit:8,
                 32:16/big,
                 BinToken/binary,
                 PayloadLength:16/big,
-                BinPayload/binary>>],
+                Payload/binary>>],
     error_logger:info_msg("Sending msg ~p (expires on ~p)~n",
                          [MsgId, Expiry]),
     ssl:send(Socket, Packet).

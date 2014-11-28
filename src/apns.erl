@@ -168,7 +168,7 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound) ->
 -spec estimate_available_bytes(msg()) -> integer().
 estimate_available_bytes(#apns_msg{} = Msg) ->
   Payload = apns_connection:build_payload(Msg),
-  ?MAX_PAYLOAD - erlang:size(list_to_binary(Payload)).
+  ?MAX_PAYLOAD - erlang:size(Payload).
 
 %% @doc Sends a full message to Apple (complete with expiry)
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(),
@@ -183,7 +183,7 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry) ->
 %% @doc Sends a full message to Apple with expiry and extra arguments
 -spec send_message(conn_id(), Token::string(), Alert::alert(), Badge::integer(),
                    Sound::apns_str(), Expiry::non_neg_integer(),
-                   ExtraArgs::[apns_mochijson2:json_property()]) -> ok.
+                   ExtraArgs::proplists:proplist()) -> ok.
 send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
   send_message(ConnId, #apns_msg{alert = Alert,
                                  badge = Badge,
@@ -195,7 +195,7 @@ send_message(ConnId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
 %% @doc Sends a full message to Apple with id, expiry and extra arguments
 -spec send_message(
   conn_id(), binary(), string(), alert(), integer(), apns_str(),
-  non_neg_integer(), [apns_mochijson2:json_property()]) -> ok.
+  non_neg_integer(), proplists:proplist()) -> ok.
 send_message(
   ConnId, MsgId, DeviceToken, Alert, Badge, Sound, Expiry, ExtraArgs) ->
   send_message(ConnId, #apns_msg{id     = MsgId,
