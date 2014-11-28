@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>apns_mochijson2 (apns4erl) -  (Erlang Documentation)</title>
+    <link href="../erldocs.css" type="text/css" rel="stylesheet"/>
+    <link href="/search.xml" rel="search" type="application/opensearchdescription+xml" title="erldocs"/>
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44246018-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  </head>
+
+  <body>
+    <div id="sidebar" class="inactive">
+      <input type="text" id="search" autocomplete="off" placeholder="press TAB to search"/>
+      <ul id="results"> </ul>
+    </div>
+
+    <div id="content">
+      <div style="margin:0px; padding:10px 20px;">
+        
+
+<h1>apns_mochijson2</h1>
+<h2 class="modsummary">JSON (RFC 4627) library for Erlang taken from couchbeam.</h2>
+<div class="description">
+<p>JSON (RFC 4627) library for Erlang taken from couchbeam. mochijson2       
+works with binaries as strings, arrays as lists (without an {array, _})       
+wrapper and it only knows how to decode UTF-8 (and ASCII).</p>
+ 
+ </div>
+<div id="types" class="category"><h4><a href="#types">Types</a></h4><hr />
+    <div class="type"><h3 id="type-decoder_option">decoder_option() = term()</h3></div>
+    <div class="type"><h3 id="type-encoder_option">encoder_option() = term() | {utf8, boolean()}</h3></div>
+    <div class="type"><h3 id="type-json_array">json_array() = [<a href="#type-json_term" class="seealso">json_term()</a>]</h3></div>
+    <div class="type"><h3 id="type-json_boolean">json_boolean() = boolean()</h3></div>
+    <div class="type"><h3 id="type-json_null">json_null() = null</h3></div>
+    <div class="type"><h3 id="type-json_number">json_number() = integer() | float()</h3></div>
+    <div class="type"><h3 id="type-json_object">json_object() = {[<a href="#type-json_property" class="seealso">json_property()</a>]}</h3></div>
+    <div class="type"><h3 id="type-json_property">json_property() = {<a href="#type-json_string" class="seealso">json_string()</a>, <a href="#type-json_term" class="seealso">json_term()</a>}</h3></div>
+    <div class="type"><h3 id="type-json_string">json_string() = atom() | binary()</h3></div>
+    <div class="type"><h3 id="type-json_term">json_term() = <a href="#type-json_string" class="seealso">json_string()</a><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <a href="#type-json_number" class="seealso">json_number()</a><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <a href="#type-json_array" class="seealso">json_array()</a><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <a href="#type-json_object" class="seealso">json_object()</a><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <a href="#type-json_null" class="seealso">json_null()</a><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <a href="#type-json_boolean" class="seealso">json_boolean()</a></h3></div></div>
+<div id="functions" class="category"><h4><a href="#functions">Functions</a></h4><hr />
+<div class="function">
+<h3 id="encoder/1">encoder(Options::[encoder_option()]) -&gt; (term()) -&gt; iolist()</h3>
+
+
+<div class="description">
+
+<p>Create an encoder/1 with the given options.</p>
+</div></div>
+<div class="function">
+<h3 id="encode/1">encode(Any::json_term()) -&gt; iolist()</h3>
+
+
+<div class="description">
+
+<p>Encode the given as JSON to an iolist.</p>
+</div></div>
+<div class="function">
+<h3 id="decoder/1">decoder(Options::[decoder_option()]) -&gt; (iolist()) -&gt; json_term()</h3>
+
+
+<div class="description">
+
+<p>Create a decoder/1 with the given options.</p>
+</div></div>
+<div class="function">
+<h3 id="decode/1">decode(S::iodata()) -&gt; json_term()</h3>
+
+
+<div class="description">
+
+<p>Decode the given iolist to Erlang terms.</p>
+</div></div>
+<div class="function">
+<h3 id="get_value/1">get_value(Key::list() | binary(), JsonObj::json_object()) -&gt; term()</h3>
+
+
+<div class="description">
+
+<p>Returns the value of a simple key/value property in json object.</p>
+</div></div>
+<div class="function">
+<h3 id="get_value/1-1">get_value(Key::list() | binary(), JsonObj::json_object(), Default::term()) -&gt; term()</h3>
+
+
+<div class="description">
+
+<p>Returns the value of a simple key/value property in json object
+  function from erlang_couchdb</p>
+</div></div></div>
+
+<authors>
+
+<aname>Bob Ippolito</aname>
+<email>bob@mochimedia.com</email></authors>
+      </div>
+  </div>
+
+    <script type="text/javascript">
+      var CURRENT_ROOT = "../";
+    </script>
+
+    <script type="text/javascript" src="../jquery.js"></script>
+    <script type="text/javascript" src="../erldocs_index.js"></script>
+    <script type="text/javascript" src="../erldocs.js"></script>
+  </body>
+</html>
