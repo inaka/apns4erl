@@ -32,7 +32,9 @@
 %% Design and Implementation.
 
 -module(apns_mochinum).
--author("Bob Ippolito <bob@mochimedia.com>").
+-author('Bob Ippolito <bob@mochimedia.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
+
 -export([digits/1, frexp/1, int_pow/2, int_ceil/1, test/0]).
 
 %% IEEE 754 Float exponent bias
@@ -246,6 +248,7 @@ log2floor(0, N) ->
 log2floor(Int, N) ->
     log2floor(Int bsr 1, 1 + N).
 
+%% @hidden
 -spec test() -> ok.
 test() ->
     ok = test_frexp(),

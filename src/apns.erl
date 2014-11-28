@@ -1,17 +1,15 @@
-%%-------------------------------------------------------------------
-%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
-%% @copyright (C) 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
 %% @doc Apple Push Notification Server for Erlang
-%% @end
-%%-------------------------------------------------------------------
 -module(apns).
--vsn('1.0').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
+-vsn('1.0.2').
 
 -include("apns.hrl").
 -include("localized.hrl").
 
 -define(EPOCH, 62167219200).
 -define(MAX_PAYLOAD, 256).
+
+-behaviour(application).
 
 -export([start/0, stop/0]).
 -export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
@@ -21,6 +19,7 @@
 -export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
 -export([default_connection/0]).
+-export([start/2, stop/1]).
 
 -type status() :: no_errors
                 | processing_error
@@ -63,6 +62,19 @@ stop() ->
 -spec connect() -> {ok, pid()} | {error, Reason::term()}.
 connect() ->
   connect(default_connection()).
+
+%% ===================================================================
+%% Application callbacks
+%% ===================================================================
+%% @hidden
+-spec start(normal | {takeover, node()} | {failover, node()}, term()) ->
+  {ok, pid()} | {error, term()}.
+start(_StartType, _StartArgs) ->
+    apns_sup:start_link().
+
+%% @hidden
+-spec stop([]) -> ok.
+stop([]) -> ok.
 
 %% @doc Opens an unnamed connection using the given feedback or error function
 %%      or using the given connection() parameters
@@ -205,7 +217,7 @@ message_id() ->
 
 %% @doc  Generates a valid expiry value for messages.
 %%       If called with <code>none</code> as the parameter, it will return a
-%%       <a>no-expire</a> value.
+%%       <code>no-expire</code> value.
 %%       If called with a datetime as the parameter, it will convert it to a
 %%       valid expiry value.
 %%       If called with an integer, it will add that many seconds to current
