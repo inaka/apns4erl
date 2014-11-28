@@ -1,7 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @hidden
-%%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
-%%% @copyright (C) 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
 %%% @doc apns4erl main supervisor
 %%% @end
 %%%-------------------------------------------------------------------
@@ -19,17 +18,19 @@
 %% API functions
 %% ===================================================================
 %% @hidden
--spec start_link() -> {ok, pid()} | ignore | {error, {already_started, pid()} | shutdown | term()}.
+-spec start_link() ->
+  {ok, pid()} | ignore | {error, {already_started, pid()} | shutdown | term()}.
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @hidden
--spec start_connection(#apns_connection{}) -> {ok, pid()} | {error, term()}.
+-spec start_connection(apns:connection()) -> {ok, pid()} | {error, term()}.
 start_connection(Connection) ->
   supervisor:start_child(?MODULE, [Connection]).
 
 %% @hidden
--spec start_connection(atom(), #apns_connection{}) -> {ok, pid()} | {error, term()}.
+-spec start_connection(atom(), apns:connection()) ->
+  {ok, pid()} | {error, term()}.
 start_connection(Name, Connection) ->
   supervisor:start_child(?MODULE, [Name, Connection]).
 
@@ -37,7 +38,11 @@ start_connection(Name, Connection) ->
 %% Supervisor callbacks
 %% ===================================================================
 %% @hidden
--spec init(_) ->  {ok, {{simple_one_for_one, 5, 10}, [{connection, {apns_connection, start_link, []}, transient, 5000, worker, [apns_connection]}]}}.
+-spec init(_) ->
+  {ok,
+   {{simple_one_for_one, 5, 10},
+    [{connection, {apns_connection, start_link, []},
+      transient, 5000, worker, [apns_connection]}]}}.
 init(_) ->
   {ok,
    {{simple_one_for_one, 5, 10},

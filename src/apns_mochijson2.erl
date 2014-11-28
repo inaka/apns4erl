@@ -1,7 +1,6 @@
 %% @author Bob Ippolito <bob@mochimedia.com>
 %% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
 %% @copyright 2007 Mochi Media, Inc.
-%% @reference <a href="https://github.com/elbrujohalcon/couchbeam/blob/master/src/couchbeam_mochijson2.erl">Original</a>
 %% @end
 %%
 %% Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -10,10 +9,10 @@
 %% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 %% copies of the Software, and to permit persons to whom the Software is
 %% furnished to do so, subject to the following conditions:
-%% 
+%%
 %% The above copyright notice and this permission notice shall be included in
 %% all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 %% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 %% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,11 +21,11 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 %%
-%% @doc JSON (RFC 4627) library for Erlang taken from couchbeam. mochijson2 works
-%%      with binaries as strings, arrays as lists (without an {array, _})
+%% @doc JSON (RFC 4627) library for Erlang taken from couchbeam. mochijson2
+%%      works with binaries as strings, arrays as lists (without an {array, _})
 %%      wrapper and it only knows how to decode UTF-8 (and ASCII).
 %%
-%% 
+%%
 
 -module(apns_mochijson2).
 -author('bob@mochimedia.com').
@@ -64,8 +63,14 @@
 -type json_object()   :: {[json_property()]}.
 -type json_boolean()  :: boolean().
 -type json_null()     :: null.
--type json_term()     :: json_string() | json_number() | json_array() | json_object() | json_null() | json_boolean().
--export_type([json_string/0, json_number/0, json_array/0, json_object/0, json_boolean/0,
+-type json_term()     :: json_string()
+                       | json_number()
+                       | json_array()
+                       | json_object()
+                       | json_null()
+                       | json_boolean().
+-export_type(
+    [json_string/0, json_number/0, json_array/0, json_object/0, json_boolean/0,
               json_null/0, json_term/0, json_property/0]).
 
 -type encoder_option() :: term() | {utf8, boolean()}.
@@ -113,7 +118,8 @@ get_value(Key, JsonObj) ->
 
 %% @doc Returns the value of a simple key/value property in json object
 %% function from erlang_couchdb
--spec get_value(Key::list() | binary(), JsonObj::json_object(), Default::term()) -> term().
+-spec get_value(
+    Key::list() | binary(), JsonObj::json_object(), Default::term()) -> term().
 get_value(Key, JsonObj, Default) when is_list(Key) ->
     get_value(list_to_binary(Key), JsonObj, Default);
 get_value(Key, JsonObj, Default) when is_binary(Key) ->
@@ -162,7 +168,7 @@ json_encode_array([], _State) ->
     <<"[]">>;
 json_encode_array(L, State) ->
     F = fun (O, Acc) ->
-                [$,, json_encode(O, State) | Acc]
+                [$, , json_encode(O, State) | Acc]
         end,
     [$, | Acc1] = lists:foldl(F, "[", L),
     lists:reverse([$\] | Acc1]).
@@ -173,7 +179,7 @@ json_encode_proplist(Props, State) ->
     F = fun ({K, V}, Acc) ->
                 KS = json_encode_string(K, State),
                 VS = json_encode(V, State),
-                [$,, VS, $:, KS | Acc]
+                [$, , VS, $:, KS | Acc]
         end,
     [$, | Acc1] = lists:foldl(F, "{", Props),
     lists:reverse([$\} | Acc1]).
@@ -439,9 +445,11 @@ tokenize_string(B, S=#decoder{offset=O}, Acc) ->
             if C > 16#D7FF, C < 16#DC00 ->
                 %% coalesce UTF-16 surrogate pair
                 <<"\\u", D3, D2, D1, D0, _/binary>> = Rest,
-                D = erlang:list_to_integer([D3,D2,D1,D0], 16),
-                [CodePoint] = xmerl_ucs:from_utf16be(<<C:16/big-unsigned-integer,
-                    D:16/big-unsigned-integer>>),
+                D = erlang:list_to_integer([D3, D2, D1, D0], 16),
+                [CodePoint] =
+                    xmerl_ucs:from_utf16be(
+                        <<C:16/big-unsigned-integer,
+                          D:16/big-unsigned-integer>>),
                 Acc1 = lists:reverse(xmerl_ucs:to_utf8(CodePoint), Acc),
                 tokenize_string(B, ?ADV_COL(S, 12), Acc1);
             true ->
@@ -523,17 +531,17 @@ tokenize(B, S=#decoder{offset=O}) ->
     case B of
         <<_:O/binary, C, _/binary>> when ?IS_WHITESPACE(C) ->
             tokenize(B, ?INC_CHAR(S, C));
-        <<_:O/binary, "{", _/binary>> ->
+        <<_:O/binary, ${, _/binary>> ->
             {start_object, ?INC_COL(S)};
-        <<_:O/binary, "}", _/binary>> ->
+        <<_:O/binary, $}, _/binary>> ->
             {end_object, ?INC_COL(S)};
-        <<_:O/binary, "[", _/binary>> ->
+        <<_:O/binary, $[, _/binary>> ->
             {start_array, ?INC_COL(S)};
-        <<_:O/binary, "]", _/binary>> ->
+        <<_:O/binary, $], _/binary>> ->
             {end_array, ?INC_COL(S)};
-        <<_:O/binary, ",", _/binary>> ->
+        <<_:O/binary, $, , _/binary>> ->
             {comma, ?INC_COL(S)};
-        <<_:O/binary, ":", _/binary>> ->
+        <<_:O/binary, $:, _/binary>> ->
             {colon, ?INC_COL(S)};
         <<_:O/binary, "null", _/binary>> ->
             {{const, null}, ?ADV_COL(S, 4)};
@@ -541,7 +549,7 @@ tokenize(B, S=#decoder{offset=O}) ->
             {{const, true}, ?ADV_COL(S, 4)};
         <<_:O/binary, "false", _/binary>> ->
             {{const, false}, ?ADV_COL(S, 5)};
-        <<_:O/binary, "\"", _/binary>> ->
+        <<_:O/binary, $\", _/binary>> ->
             tokenize_string(B, ?INC_COL(S));
         <<_:O/binary, C, _/binary>> when (C >= $0 andalso C =< $9)
                                          orelse C =:= $- ->

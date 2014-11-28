@@ -1,19 +1,18 @@
 %% @copyright 2007 Mochi Media, Inc.
 %% @author Bob Ippolito <bob@mochimedia.com>
-%% @reference <a href="https://github.com/elbrujohalcon/couchbeam/blob/master/src/couchbeam_mochinum.erl">Original</a>
 %% @end
 %% Copyright (c) 2007 Mochi Media, Inc.
-%% 
+%%
 %% Permission is hereby granted, free of charge, to any person obtaining a copy
 %% of this software and associated documentation files (the "Software"), to deal
 %% in the Software without restriction, including without limitation the rights
 %% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 %% copies of the Software, and to permit persons to whom the Software is
 %% furnished to do so, subject to the following conditions:
-%% 
+%%
 %% The above copyright notice and this permission notice shall be included in
 %% all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 %% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 %% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -26,7 +25,9 @@
 %% @doc Useful numeric algorithms for floats that cover some deficiencies
 %% in the math module. More interesting is digits/1, which implements
 %% the algorithm from:
-%% <a href="http://www.cs.indiana.edu/~burger/fp/index.html">Printing Floating-Point Numbers Quickly and Accurately"</a>
+%% <a href="http://www.cs.indiana.edu/~burger/fp/index.html">
+%%   Printing Floating-Point Numbers Quickly and Accurately"
+%% </a>
 %% in Proceedings of the SIGPLAN '96 Conference on Programming Language
 %% Design and Implementation.
 
@@ -61,7 +62,7 @@ digits(Float) ->
         _ ->
             R
     end.
-    
+
 %% @doc  Return the fractional and exponent part of an IEEE 754 double,
 %%       equivalent to the libc function of the same name.
 %%       F = Frac * pow(2, Exp).
@@ -216,17 +217,14 @@ generate(R0, S, MPlus, MMinus, LowOk, HighOk) ->
             case TC2 of
                 false ->
                     [D];
-                true ->
-                    case R * 2 < S of
-                        true ->
-                            [D];
-                        false ->
-                            [D + 1]
-                    end
+                true when R * 2 < S ->
+                    [D];
+                true when R * 2 >= S ->
+                    [D + 1]
             end
     end.
 
-unpack(Float) ->    
+unpack(Float) ->
     <<Sign:1, Exp:11, Frac:52>> = <<Float:64/float>>,
     {Sign, Exp, Frac}.
 
@@ -264,7 +262,7 @@ test_int_ceil() ->
     -1 = int_ceil(-1.5),
     -2 = int_ceil(-2.0),
     ok.
-    
+
 test_int_pow() ->
     1 = int_pow(1, 1),
     1 = int_pow(1, 0),
@@ -273,7 +271,7 @@ test_int_pow() ->
     100 = int_pow(10, 2),
     1000 = int_pow(10, 3),
     ok.
-    
+
 test_digits() ->
     "0" = digits(0),
     "0.0" = digits(0.0),
