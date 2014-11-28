@@ -18,7 +18,7 @@ analyze: all
 
 xref: all
 	rebar skip_deps=true --verbose xref
-   
+
 shell: all
 	if [ -f `hostname`.config ]; then\
 		erl  -config `hostname` -boot start_sasl ${RUN};\
@@ -43,3 +43,5 @@ test: all
 doc: compile
 	rebar skip_deps=true doc
 
+erldocs: compile
+	erldocs . -o doc/

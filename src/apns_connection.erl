@@ -46,6 +46,20 @@ start_link(Name, Connection) ->
 start_link(Connection) ->
   gen_server:start_link(?MODULE, Connection, []).
 
+%% @hidden
+-spec build_payload(apns:msg()) -> iodata().
+build_payload(Msg) ->
+  #apns_msg{ alert = Alert
+           , badge = Badge
+           , sound = Sound
+           , apns_extra=Apns_Extra
+           , content_available = Content_Available
+           , extra = Extra} = Msg,
+  build_payload(
+    [ {alert, Alert}
+    , {badge, Badge}
+    , {sound, Sound}] ++ Apns_Extra, Extra, Content_Available).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Server implementation, a.k.a.: callbacks
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -249,17 +263,6 @@ code_change(_OldVsn, State, _Extra) ->  {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Private functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec build_payload(apns:msg()) -> iodata().
-build_payload(#apns_msg{alert = Alert,
-                        badge = Badge,
-                        sound = Sound,
-                        apns_extra=Apns_Extra,
-                        content_available = Content_Available,
-                        extra = Extra}) ->
-    build_payload([{alert, Alert},
-                   {badge, Badge},
-                   {sound, Sound}] ++ Apns_Extra, Extra, Content_Available).
-
 build_payload(Params, Extra, Content_Available) ->
   apns_mochijson2:encode(
     {[{<<"aps">>, do_build_payload(Params, Content_Available)} | Extra]}).

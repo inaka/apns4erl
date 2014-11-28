@@ -248,6 +248,7 @@ log2floor(0, N) ->
 log2floor(Int, N) ->
     log2floor(Int bsr 1, 1 + N).
 
+%% @hidden
 -spec test() -> ok.
 test() ->
     ok = test_frexp(),

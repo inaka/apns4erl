@@ -8,6 +8,6 @@
                   stdlib,
                   ssl
                  ]},
-  {mod, {apns_app, []}},
+  {mod, {apns, []}},
   {env, []}
  ]}.
