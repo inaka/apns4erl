@@ -49,9 +49,17 @@
 %% @doc Starts the application
 -spec start() -> ok | {error, {already_started, apns}}.
 start() ->
-  _ = application:start(public_key),
-  _ = application:start(ssl),
-  application:start(apns).
+  application:load(apns),
+  case erlang:function_exported(application, ensure_all_started, 1) of
+    false ->
+      _ = application:start(crypto),
+      _ = application:start(public_key),
+      _ = application:start(ssl),
+      application:start(apns);
+    true ->
+      _ = application:ensure_all_started(apns),
+      ok
+  end.
 
 %% @doc Stops the application
 -spec stop() -> ok.

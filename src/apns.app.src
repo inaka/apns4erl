@@ -9,5 +9,6 @@
                   ssl
                  ]},
   {mod, {apns, []}},
-  {env, []}
+  {env, []},
+  {modules, []}
  ]}.

@@ -11,4 +11,4 @@ openssl rsa -in priv/temp/key-enc.pem -out priv/temp/key.pem
 openssl x509 -inform der -in "$1" -out priv/temp/cert.pem
 cat priv/temp/cert.pem priv/temp/key.pem > priv/cert.pem
 rm -rf priv/temp
-make test
+make tests
