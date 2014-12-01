@@ -736,7 +736,7 @@ tests-ct: clean deps app build-ct-suites
 	@if [ -d "test" ] ; \
 	then \
 		mkdir -p logs/ ; \
-		echo $(CT_RUN) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS) ; \
+		$(CT_RUN) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS) ; \
 	fi
 	$(gen_verbose) rm -f test/*.beam
 
@@ -746,7 +746,7 @@ ct-$(1): clean deps app build-ct-suites
 	@if [ -d "test" ] ; \
 	then \
 		mkdir -p logs/ ; \
-		echo $(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_OPTS) ; \
+		$(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_OPTS) ; \
 	fi
 	$(gen_verbose) rm -f test/*.beam
 endef
