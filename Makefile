@@ -1,47 +1,29 @@
-RUN := +Bc +K true -smp enable -pa ebin -pa deps/*/ebin -s crypto -s inets -s ssl ${ERL_ARGS}
+PROJECT=apns
 
-all:
-	rebar get-deps && rebar compile
+CONFIG?=priv/app.config
 
-compile:
-	rebar compile
+DEPS = jiffy lager sync katana eper
+dep_jiffy = git https://github.com/davisp/jiffy 0.13.3
+dep_lager = git https://github.com/basho/lager.git 2.0.3
+dep_sync = git https://github.com/inaka/sync.git 0.1
+dep_katana =  git https://github.com/inaka/erlang-katana 0.2.0
+dep_eper = git https://github.com/massemanet/eper.git 0.90.0
 
-clean:
-	rebar clean
+include erlang.mk
 
-build_plt: all
-	dialyzer --verbose --build_plt --apps kernel stdlib erts compiler hipe crypto \
-		edoc gs syntax_tools --output_plt ~/.apns4erl.plt
+ERLC_OPTS += +'{parse_transform, lager_transform}'
+ERLC_OPTS += +warn_unused_vars +warn_export_all +warn_shadow_vars +warn_unused_import +warn_unused_function
+ERLC_OPTS += +warn_bif_clash +warn_unused_record +warn_deprecated_function +warn_obsolete_guard +strict_validation
+ERLC_OPTS += +warn_export_vars +warn_exported_vars +warn_missing_spec +warn_untyped_record +debug_info
 
-analyze: all
-	dialyzer --verbose --plt ~/.apns4erl.plt -Werror_handling ebin
+# Commont Test Config
 
-xref: all
-	rebar skip_deps=true --verbose xref
+TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
+CT_SUITES = apns
+CT_OPTS = -cover test/apns.coverspec -vvv -erl_args -config test/app.config
 
-shell: all
-	if [ -f `hostname`.config ]; then\
-		erl  -config `hostname` -boot start_sasl ${RUN};\
-	else\
-		erl  -boot start_sasl ${RUN};\
-	fi
+shell: app
+	erl -pa ebin -pa deps/*/ebin -s lager -s crypto -s inets -s ssl -s sync -s apns -config ${CONFIG}
 
-run: all
-	if [ -f `hostname`.config ]; then\
-		erl  -config `hostname` -boot start_sasl ${RUN} -s apns;\
-	else\
-		erl  -boot start_sasl ${RUN} -s apns;\
-	fi
-
-test: all
-	if [ -f `hostname`.config ]; then\
-		erl -noshell -noinput -config `hostname` ${RUN} -run apns_tests main;\
-	else\
-		erl -noshell -noinput ${RUN} -run apns_tests main;\
-	fi
-
-doc: compile
-	rebar skip_deps=true doc
-
-erldocs: compile
+erldocs: app
 	erldocs . -o doc/

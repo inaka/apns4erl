@@ -6,8 +6,10 @@
   {applications, [
                   kernel,
                   stdlib,
+                  lager,
                   ssl
                  ]},
   {mod, {apns, []}},
-  {env, []}
+  {env, []},
+  {modules, []}
  ]}.
