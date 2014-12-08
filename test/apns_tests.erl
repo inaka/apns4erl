@@ -100,6 +100,20 @@ run() ->
       ?fail(DownMsg5)
     after 1000 ->
       ok
+  end,
+  ?assertEqual(ok, apns:send_message(?TEST_CONNECTION, #apns_msg{device_token = ?DEVICE_TOKEN,
+                                 sound = "chime",
+                                 badge = 12,
+                                 expiry = apns:expiry(86400),
+                                 alert = "Low Priority alert",
+                                 priority = 0})),
+  receive
+    {'DOWN', Ref, _, _, _} = DownMsg6 ->
+      ?fail(DownMsg6);
+    DownMsg6 ->
+      ?fail(DownMsg6)
+    after 1000 ->
+      ok
   end.
 
 log_error(MsgId, Status) ->
