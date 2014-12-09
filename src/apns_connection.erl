@@ -359,4 +359,4 @@ build_frame(MsgId, Expiry, BinToken, Payload, Priority) ->
     2:8, PayloadLength:16/big, Payload/binary,
     3:8, 4:16/big, MsgId/binary,
     4:8, 4:16/big, Expiry:4/big-unsigned-integer-unit:8,
-    5:8, 1:16/big, Priority:8/big>>.
+    5:8, 1:16/big, Priority:8>>.

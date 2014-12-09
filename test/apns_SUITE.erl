@@ -110,12 +110,12 @@ minimal(_Config) ->
                                  badge = 12,
                                  expiry = apns:expiry(86400),
                                  alert = "Low Priority alert",
-                                 priority = 0})),
+                                 priority = 0}),
   receive
     {'DOWN', Ref, _, _, _} = DownMsg6 ->
-      ?fail(DownMsg6);
+      throw(DownMsg6);
     DownMsg6 ->
-      ?fail(DownMsg6)
+      throw(DownMsg6)
     after 1000 ->
       ok
   end.

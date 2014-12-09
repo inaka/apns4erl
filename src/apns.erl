@@ -134,7 +134,8 @@ send_message(ConnId, Msg) ->
 -spec send_content_available(conn_id(), string()) -> ok.
 send_content_available(ConnId, DeviceToken) ->
   send_message(ConnId, #apns_msg{device_token = DeviceToken,
-                                 content_available = true}).
+                                 content_available = true,
+                                 priority = 5}).
 
 %% @doc Sends a message to Apple with content_available: 1 and an alert
 -spec send_content_available(conn_id(), string(), string()) -> ok.
