@@ -186,9 +186,9 @@ handle_info( {ssl, SslSocket, Data}
       case Command of
         8 -> %% Error
           Status = parse_status(StatusCode),
-          {_MsgFailed, RestMsg} = apns_queue:fail(State#state.queue, MsgId),
+          {MsgFailed, RestMsg} = apns_queue:fail(State#state.queue, MsgId),
           [send_message(self(), M) || M <- RestMsg],
-          try Error(MsgId, Status) of
+          try Error(MsgId, Status, MsgFailed) of
             stop -> throw({stop, {msg_error, MsgId, Status}, State});
             _ -> noop
           catch

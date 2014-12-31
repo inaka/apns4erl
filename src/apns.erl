@@ -270,7 +270,7 @@ default_connection() ->
         get_env(timeout, DefaultConn#apns_connection.timeout)
     , error_fun =
         case get_env(error_fun, DefaultConn#apns_connection.error_fun) of
-                                                  {M, F} -> fun(I, S) -> M:F(I, S) end;
+                                                  {M, F} -> fun(I, S, Msg) -> M:F(I, S, Msg) end;
                                                   Other -> Other
         end
     , feedback_timeout =
