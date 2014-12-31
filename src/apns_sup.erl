@@ -1,12 +1,10 @@
 %%%-------------------------------------------------------------------
 %%% @hidden
-%%% @author Fernando Benavides <fernando.benavides@inakanetworks.com>
-%%% @copyright (C) 2010 Fernando Benavides <fernando.benavides@inakanetworks.com>
 %%% @doc apns4erl main supervisor
 %%% @end
 %%%-------------------------------------------------------------------
 -module(apns_sup).
--author('Fernando Benavides <fernando.benavides@inakanetworks.com>').
+-author('Brujo Benavides <elbrujohalcon@inaka.net>').
 
 -behaviour(supervisor).
 
@@ -19,17 +17,19 @@
 %% API functions
 %% ===================================================================
 %% @hidden
--spec start_link() -> {ok, pid()} | ignore | {error, {already_started, pid()} | shutdown | term()}.
+-spec start_link() ->
+  {ok, pid()} | ignore | {error, {already_started, pid()} | shutdown | term()}.
 start_link() ->
     apns_supervisor2:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @hidden
--spec start_connection(#apns_connection{}) -> {ok, pid()} | {error, term()}.
+-spec start_connection(apns:connection()) -> {ok, pid()} | {error, term()}.
 start_connection(Connection) ->
   apns_supervisor2:start_child(?MODULE, [Connection]).
 
 %% @hidden
--spec start_connection(atom(), #apns_connection{}) -> {ok, pid()} | {error, term()}.
+-spec start_connection(atom(), apns:connection()) ->
+  {ok, pid()} | {error, term()}.
 start_connection(Name, Connection) ->
   apns_supervisor2:start_child(?MODULE, [Name, Connection]).
 
@@ -37,7 +37,11 @@ start_connection(Name, Connection) ->
 %% Supervisor callbacks
 %% ===================================================================
 %% @hidden
--spec init(_) ->  {ok, {{simple_one_for_one, 5, 10}, [{connection, {apns_connection, start_link, []}, transient, 5000, worker, [apns_connection]}]}}.
+-spec init(_) ->
+  {ok,
+   {{simple_one_for_one, 5, 10},
+    [{connection, {apns_connection, start_link, []},
+      transient, 5000, worker, [apns_connection]}]}}.
 init(_) ->
     Restart = apns:get_env(connections_sup_restart_strategy, transient),
   {ok,

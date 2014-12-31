@@ -16,3 +16,8 @@ admin/log/*.log
 *.orig
 doc
 rebar
+priv/cert.pem
+.awconfig
+.erlang.mk.packages.v2
+logs/
+

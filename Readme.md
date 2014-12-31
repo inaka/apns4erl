@@ -5,6 +5,15 @@ This lib is intended to allow you to write an APNs provider for Apple Push Notif
 
 Copyright (c) 2010 Inaka Labs SRL <support@inaka.net>, released under the MIT license
 
+Contact Us
+==========
+For **questions** or **general comments** regarding the use of Apns4erl, please use our public
+[hipchat room](https://www.hipchat.com/gpBpW3SsT).
+
+If you find any **bugs** or have a **problem** while using Apns4erl, please [open an issue](https://github.com/inaka/apns4erl/issues/new) in this repo (or a pull request :)).
+
+And you can check all of our open-source projects at [inaka.github.io](http://inaka.github.io)
+
 Example
 =======
 
@@ -93,3 +102,26 @@ If there were no errors, but Apple reported that the user removed the applicatio
     handle_apns_delete_subscription(Data) ->
       error_logger:info_msg("delete subscription: ~p~n", [Data]).
 ```
+
+Passing Keys and Certificates Directly
+======================================
+
+By default, the private key and certificate to use to connect to
+Apple's servers are loaded out of the PEM-encoded files specified in
+`cert_file` and `key_file`. However, if you prefer to store these
+elsewhere and load them manually, you can pass DER-encoded binaries
+when connecting:
+
+```erlang
+    CertBin = <<"-----BEGIN CERTIFICATE-----"...>>, % perhaps from a database
+    KeyBin = <<"-----BEGIN RSA PRIVATE KEY-----"...>>,
+    [{'Certificate', CertDER, not_encrypted}] = public_key:pem_decode(CertBin),
+    [{'RSAPrivateKey', KeyDER, not_encrypted}] = public_key:pem_decode(KeyBin),
+    Connection = #apns_connection{cert_file=undefined,
+                                  cert=CertDER,
+                                  key={'RSAPrivateKey', KeyDER}},
+    apns:connect(Connection).
+```
+
+If you store your key and certificate as DER binaries, you can pass
+them directly without any decoding.
