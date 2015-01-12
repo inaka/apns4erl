@@ -11,7 +11,6 @@
 
 -behaviour(gen_server).
 
--define(QUEUE, queue).
 -define(DEFAULT_MAX_ENTRIES, 1000).
 
 -export([
@@ -30,7 +29,7 @@
     code_change/3]).
 
 -record(state, {
-    queue = ?QUEUE:new() :: queue(),
+    queue = queue:new() :: queue(),
     max_entries = ?DEFAULT_MAX_ENTRIES :: pos_integer()
 }).
 
@@ -73,11 +72,11 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 handle_cast({in, Msg}, #state{max_entries=MaxEntries,queue=OldQueue}=State) ->
-    Queue = case MaxEntries =< ?QUEUE:len(OldQueue) of
-        true -> ?QUEUE:liat(OldQueue);
+    Queue = case MaxEntries =< queue:len(OldQueue) of
+        true -> queue:liat(OldQueue);
         false -> OldQueue
     end,
-    {noreply, State#state{queue = ?QUEUE:in(Msg, Queue)}};
+    {noreply, State#state{queue = queue:in(Msg, Queue)}};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -85,7 +84,7 @@ handle_cast(_Msg, State) ->
 %% @hidden
 -spec handle_call(X::term(), reference(), state()) -> {reply, {Failed::apns:msg(), RestToRetry::[apns:msg()]}, state()}.
 handle_call({fail, ID}, _From, #state{queue=Queue}=State) ->
-    {reply, recover_fail(ID, Queue), State#state{queue=?QUEUE:new()}};
+    {reply, recover_fail(ID, Queue), State#state{queue=queue:new()}};
 
 handle_call(_Msg, _From, State) ->
     {reply, ok, State}.
@@ -113,7 +112,7 @@ code_change(_OldVsn, State, _Extra) ->
 %@hidden
 recover_fail(ID, Queue) ->
     Now = apns:expiry(0),
-    List = ?QUEUE:to_list(?QUEUE:filter(fun
+    List = queue:to_list(queue:filter(fun
         (#apns_msg{expiry=Expiry}) -> Expiry > Now
     end, Queue)),
     DropWhile = fun(#apns_msg{id=I}) -> I =/= ID end,
