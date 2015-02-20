@@ -7,7 +7,7 @@
 -include("localized.hrl").
 
 -define(EPOCH, 62167219200).
--define(MAX_PAYLOAD, 256).
+-define(MAX_PAYLOAD, 2048).
 
 -behaviour(application).
 
