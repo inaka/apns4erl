@@ -53,12 +53,14 @@ build_payload(Msg) ->
   #apns_msg{ alert = Alert
            , badge = Badge
            , sound = Sound
+           , category = Category
            , apns_extra=Apns_Extra
            , content_available = Content_Available
            , extra = Extra} = Msg,
   build_payload(
     [ {alert, Alert}
     , {badge, Badge}
+    , {category, Category}
     , {sound, Sound}] ++ Apns_Extra, Extra, Content_Available).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
