@@ -82,6 +82,7 @@ Actually, send\_message/3, send\_message/4, send\_message/5, send\_message/6, se
       alert  = "alert" ,
       badge  = 1,
       sound  = "sound" ,
+      category = "EMAIL_ACTION",
       expiry = 1348000749,
       device_token = "this_is_a_valid_device_token"
     }).
