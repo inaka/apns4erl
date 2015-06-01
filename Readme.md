@@ -27,6 +27,7 @@ Using apns4erl is quite simple. First, setup something similar to this in your s
       {key_file, undefined},
       {cert_password, undefined},
       {timeout, 30000},
+      {expires_conn, 300}
       {feedback_port, 2196},
       {feedback_host, "feedback.sandbox.push.apple.com"},
       {feedback_timeout, 18000000}

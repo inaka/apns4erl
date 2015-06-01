@@ -20,7 +20,8 @@
                 connection        :: apns:connection(),
                 in_buffer = <<>>  :: binary(),
                 out_buffer = <<>> :: binary(),
-                queue             :: pid()}).
+                queue             :: pid(),
+                out_expires       :: integer()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -72,6 +73,7 @@ build_payload(Msg) ->
 init(Connection) ->
   try
     {ok, QID} = apns_queue:start_link(),
+    Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
       {ok, OutSocket} -> case open_feedback(Connection) of
           {ok, InSocket} ->
@@ -79,6 +81,7 @@ init(Connection) ->
                        , in_socket  = InSocket
                        , connection = Connection
                        , queue      = QID
+                       , out_expires = Timeout
                        }};
           {error, Reason} -> {stop, Reason}
         end;
@@ -149,8 +152,9 @@ handle_cast(Msg, State=#state{ out_socket = undefined
                              , connection = Connection}) ->
   try
     error_logger:info_msg("Reconnecting to APNS...~n"),
+    Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
-      {ok, Socket} -> handle_cast(Msg, State#state{out_socket=Socket});
+      {ok, Socket} -> handle_cast(Msg, State#state{out_socket=Socket, out_expires = Timeout});
       {error, Reason} -> {stop, Reason}
     end
   catch
@@ -159,16 +163,23 @@ handle_cast(Msg, State=#state{ out_socket = undefined
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   Socket = State#state.out_socket,
-  Payload = build_payload(Msg),
-  BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
-  apns_queue:in(State#state.queue, Msg),
-  case send_payload(
-        Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload, Msg#apns_msg.priority) of
-    ok ->
-      {noreply, State};
-    {error, Reason} ->
-      apns_queue:fail(State#state.queue, Msg#apns_msg.id),
-      {stop, {error, Reason}, State}
+  case State#state.out_expires =< epoch() of
+    true ->
+      ssl:close(Socket),
+      handle_cast(Msg,State#state{out_socket = undefined});
+    false ->
+      Connection = State#state.connection,
+      Timeout = epoch() + Connection#apns_connection.expires_conn,
+      Payload = build_payload(Msg),
+      BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
+      apns_queue:in(State#state.queue, Msg),
+      case send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload, Msg#apns_msg.priority) of
+        ok ->
+          {noreply, State#state{out_expires = Timeout}};
+      {error, Reason} ->
+        apns_queue:fail(State#state.queue, Msg#apns_msg.id),
+        {stop, {error, Reason}, State}
+    end
   end;
 
 handle_cast(stop, State) ->
@@ -369,3 +380,7 @@ build_frame(MsgId, Expiry, BinToken, Payload, Priority) ->
     3:8, 4:16/big, MsgId/binary,
     4:8, 4:16/big, Expiry:4/big-unsigned-integer-unit:8,
     5:8, 1:16/big, Priority:8>>.
+
+epoch() ->
+  {M,S,_} = os:timestamp(),
+  M * 1000000 + S.
