@@ -284,4 +284,6 @@ default_connection() ->
         get_env(feedback_host, DefaultConn#apns_connection.feedback_host)
     , feedback_port =
         get_env(feedback_port, DefaultConn#apns_connection.feedback_port)
+    , expires_conn =
+        get_env(expires_conn,  DefaultConn#apns_connection.expires_conn)
     }.
