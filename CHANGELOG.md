@@ -1,8 +1,20 @@
 # Change Log
 
-## [1.0.5](https://github.com/inaka/apns4erl/tree/HEAD)
+## [1.0.6](https://github.com/inaka/apns4erl/tree/HEAD)
 
-[Full Changelog](https://github.com/inaka/apns4erl/compare/1.0.4...HEAD)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/1.0.5...HEAD)
+
+**Merged pull requests:**
+
+- Support {M,F} callbacks as well as funs for feedback/error\_fun. [\#62](https://github.com/inaka/apns4erl/pull/62) ([jwheare](https://github.com/jwheare))
+
+- Use tag atom for deps [\#61](https://github.com/inaka/apns4erl/pull/61) ([jwheare](https://github.com/jwheare))
+
+- Updated license [\#58](https://github.com/inaka/apns4erl/pull/58) ([spike886](https://github.com/spike886))
+
+## [1.0.5](https://github.com/inaka/apns4erl/tree/1.0.5) (2015-06-01)
+
+[Full Changelog](https://github.com/inaka/apns4erl/compare/1.0.4...1.0.5)
 
 **Closed issues:**
 
@@ -23,6 +35,8 @@
 - Why Feedback server disconnected as soon as I connected the feedback ok? [\#24](https://github.com/inaka/apns4erl/issues/24)
 
 **Merged pull requests:**
+
+- \[\#55\] 1.0.5 Version Bump [\#56](https://github.com/inaka/apns4erl/pull/56) ([davecaos](https://github.com/davecaos))
 
 - Reset connection on inactivity period [\#54](https://github.com/inaka/apns4erl/pull/54) ([mdaguete](https://github.com/mdaguete))
 
