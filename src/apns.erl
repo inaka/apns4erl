@@ -1,7 +1,7 @@
 %% @doc Apple Push Notification Server for Erlang
 -module(apns).
 -author('Brujo Benavides <elbrujohalcon@inaka.net>').
--vsn('1.0.2').
+-vsn('1.0.6').
 
 -include("apns.hrl").
 -include("localized.hrl").
