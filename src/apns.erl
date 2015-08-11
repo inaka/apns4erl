@@ -5,6 +5,7 @@
 
 -include("apns.hrl").
 -include("localized.hrl").
+-include("apns_safari.hrl").
 
 -define(EPOCH, 62167219200).
 -define(MAX_PAYLOAD, 2048).
@@ -41,7 +42,8 @@
 
 -type apns_str() :: binary() | string().
 -type alert() :: apns_str() | #loc_alert{}.
--export_type([alert/0]).
+-type safari_alert() :: #safari_alert{}.
+-export_type([alert/0, safari_alert/0]).
 
 -type msg() :: #apns_msg{}.
 -export_type([msg/0]).

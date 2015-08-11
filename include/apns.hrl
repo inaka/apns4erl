@@ -23,7 +23,7 @@
                    expiry = apns:expiry(86400)  :: non_neg_integer(), %% default = 1 day
                    device_token                 :: string(),
                    content_available = false    :: boolean(),
-                   alert = none                 :: none | apns:alert(),
+                   alert = none                 :: none | apns:alert() | apns:safari_alert(),
                    badge = none                 :: none | integer(),
                    category = none              :: none | string(),
                    sound = none                 :: none | apns:apns_str(),

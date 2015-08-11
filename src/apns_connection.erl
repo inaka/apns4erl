@@ -9,6 +9,7 @@
 
 -include("apns.hrl").
 -include("localized.hrl").
+-include("apns_safari.hrl").
 
 -export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, code_change/3]).
@@ -326,6 +327,21 @@ do_build_payload([{Key, Value} | Params], Payload) ->
                     lists:map(fun unicode:characters_to_binary/1, Args)}
                 ]},
       do_build_payload(Params, [{atom_to_binary(Key, utf8), Json} | Payload]);
+    #safari_alert{action = Action,
+                  body = Body,
+                  title = Title,
+                  url_args = UArgs
+                 }->
+
+        AlertJson = {[
+            {<<"title">>, unicode:characters_to_binary(Title)},
+            {<<"body">>, unicode:characters_to_binary(Body)},
+            {<<"action">>, unicode:characters_to_binary(Action)}
+        ]},
+
+        UArgsP = lists:map(fun(Arg) -> unicode:characters_to_binary(Arg) end, UArgs),
+        do_build_payload(Params, [{atom_to_binary(Key, utf8), AlertJson}, {<<"url-args">>, UArgsP} | Payload]);
+
     _ ->
       do_build_payload(Params, Payload)
   end;
