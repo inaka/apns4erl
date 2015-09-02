@@ -113,7 +113,7 @@ ssl_opts(Connection) ->
       undefined -> [];
       Password -> [{password, Password}]
     end,
-  [{mode, binary} | Opts].
+  [{mode, binary}, {versions, ['tlsv1.1']} | Opts].
 
 %% @hidden
 open_out(Connection) ->
