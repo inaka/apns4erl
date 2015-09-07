@@ -93,10 +93,12 @@ init(Connection) ->
 
 %% @hidden
 ssl_opts(Connection) ->
-  Opts = case Connection#apns_connection.key_file of
-    undefined -> [];
-    KeyFile -> [{keyfile, filename:absname(KeyFile)}]
-  end ++
+    Opts = Connection#apns_connection.extra_ssl_opts
+    ++
+      case Connection#apns_connection.key_file of
+        undefined -> [];
+        KeyFile -> [{keyfile, filename:absname(KeyFile)}]
+    end ++
     case Connection#apns_connection.cert_file of
       undefined -> [];
       CertFile -> [{certfile, filename:absname(CertFile)}]
@@ -113,7 +115,7 @@ ssl_opts(Connection) ->
       undefined -> [];
       Password -> [{password, Password}]
     end,
-  [{mode, binary}, {versions, ['tlsv1.1']} | Opts].
+  [{mode, binary} | Opts].
 
 %% @hidden
 open_out(Connection) ->
