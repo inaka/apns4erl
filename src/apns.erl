@@ -286,4 +286,6 @@ default_connection() ->
         get_env(feedback_port, DefaultConn#apns_connection.feedback_port)
     , expires_conn =
         get_env(expires_conn,  DefaultConn#apns_connection.expires_conn)
+    , extra_ssl_opts =
+        get_env(extra_ssl_opts,  DefaultConn#apns_connection.extra_ssl_opts)
     }.
