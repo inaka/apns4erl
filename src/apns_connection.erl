@@ -45,7 +45,7 @@ stop(ConnId) ->
 -spec start_link(atom(), apns:connection()) ->
   {ok, pid()} | {error, {already_started, pid()}}.
 start_link(Name, Connection) ->
-  gen_server:start_link({local, Name}, ?MODULE, [Name,Connection], []).
+  gen_server:start_link({local, Name}, ?MODULE, [Name, Connection], []).
 %% @hidden
 -spec start_link(apns:connection()) -> {ok, pid()}.
 start_link(Connection) ->
@@ -73,15 +73,15 @@ build_payload(Msg) ->
 
 %% @hidden
 -spec init(apns:connection()) -> {ok, state()} | {stop, term()}.
-init([Name,Connection]) ->
-  init(Name,Connection);
+init([Name, Connection]) ->
+  init(Name, Connection);
 init(Connection) ->
-  init(?MODULE,Connection).
+  init(?MODULE, Connection).
 
 
 %% @hidden
 -spec init(atom(), apns:connection()) -> {ok, state() | {stop, term()}}.
-init(Name,Connection) ->
+init(Name, Connection) ->
   try
     {ok, QID} = apns_queue:start_link(),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
@@ -94,8 +94,10 @@ init(Name,Connection) ->
                        , queue      = QID
                        , out_expires = Timeout
                        , name = Name
-                       , error_logger_fun = Connection#apns_connection.error_logger_fun
-                       , info_logger_fun  = Connection#apns_connection.info_logger_fun
+                       , error_logger_fun =
+                          Connection#apns_connection.error_logger_fun
+                       , info_logger_fun  =
+                          Connection#apns_connection.info_logger_fun
                        }};
           {error, Reason} -> {stop, Reason}
         end;
@@ -261,7 +263,8 @@ handle_info( {ssl, SslSocket, Data}
       catch
         _:Error ->
           ErrorLoggerFun(
-            "[ ~p ] Error trying to inform feedback token ~p: ~p", [Name, Token, Error])
+            "[ ~p ] Error trying to inform feedback token ~p: ~p",
+            [Name, Token, Error])
       end,
       case erlang:size(Rest) of
         0 -> {noreply, State#state{in_buffer = <<>>}}; %% It was a whole package
@@ -278,7 +281,8 @@ handle_info({ssl_closed, SslSocket}
                            , name = Name
                            }) ->
   InfoLoggerFun(
-    "[ ~p ] Feedback server disconnected. Waiting ~p millis to connect again...",
+    "[ ~p ] Feedback server disconnected. "
+    "Waiting ~p millis to connect again...",
     [Name, Connection#apns_connection.feedback_timeout]),
   _Timer =
     erlang:send_after(
@@ -366,10 +370,12 @@ do_build_payload([{Key, Value} | Params], Payload) ->
 do_build_payload([], Payload) ->
   {Payload}.
 
--spec send_payload(tuple(), binary(), non_neg_integer(), binary(), binary(), integer()) ->
-  ok | {error, term()}.
-send_payload(#state{out_socket = Socket, info_logger_fun = InfoLoggerFun, name = Name}
-            , MsgId, Expiry, BinToken, Payload, Priority) ->
+-spec send_payload(tuple(), binary(), non_neg_integer(),
+    binary(), binary(), integer()) ->   ok | {error, term()}.
+send_payload(#state{out_socket = Socket
+                   , info_logger_fun = InfoLoggerFun
+                   , name = Name}, MsgId, Expiry, BinToken
+            , Payload, Priority) ->
     Frame = build_frame(MsgId, Expiry, BinToken, Payload, Priority),
     FrameLength = erlang:size(Frame),
     Packet = [<<2:8,
