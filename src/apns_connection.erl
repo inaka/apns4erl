@@ -10,8 +10,8 @@
 -include("apns.hrl").
 -include("localized.hrl").
 
--export([start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2,
-         handle_info/2, terminate/2, code_change/3]).
+-export([start_link/1, start_link/2, init/1, init/2, handle_call/3,
+         handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([send_message/2, stop/1]).
 -export([build_payload/1]).
 
@@ -21,7 +21,10 @@
                 in_buffer = <<>>  :: binary(),
                 out_buffer = <<>> :: binary(),
                 queue             :: pid(),
-                out_expires       :: integer()}).
+                out_expires       :: integer(),
+                error_logger_fun  :: fun((string(), list()) -> _),
+                info_logger_fun   :: fun((string(), list()) -> _),
+                name              :: atom()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -71,6 +74,12 @@ build_payload(Msg) ->
 %% @hidden
 -spec init(apns:connection()) -> {ok, state()} | {stop, term()}.
 init(Connection) ->
+  init(?MODULE,Connection).
+
+
+%% @hidden
+-spec init(atom(), apns:connection()) -> {ok, state() | {stop, term()}}.
+init(Name,Connection) ->
   try
     {ok, QID} = apns_queue:start_link(),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
@@ -82,6 +91,9 @@ init(Connection) ->
                        , connection = Connection
                        , queue      = QID
                        , out_expires = Timeout
+                       , name = Name
+                       , error_logger_fun = Connection#apns_connection.error_logger_fun
+                       , info_logger_fun  = Connection#apns_connection.info_logger_fun
                        }};
           {error, Reason} -> {stop, Reason}
         end;
@@ -151,9 +163,12 @@ handle_call(Request, _From, State) ->
 -spec handle_cast(stop | apns:msg(), state()) ->
   {noreply, state()} | {stop, normal | {error, term()}, state()}.
 handle_cast(Msg, State=#state{ out_socket = undefined
-                             , connection = Connection}) ->
+                             , connection = Connection
+                             , info_logger_fun = InfoLoggerFun
+                             , name = Name
+                             }) ->
   try
-    error_logger:info_msg("Reconnecting to APNS...~n"),
+    InfoLoggerFun("[ ~p ] Reconnecting to APNS...",[Name]),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
       {ok, Socket} -> handle_cast(Msg, State#state{out_socket=Socket, out_expires = Timeout});
@@ -175,7 +190,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
       Payload = build_payload(Msg),
       BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
       apns_queue:in(State#state.queue, Msg),
-      case send_payload(Socket, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload, Msg#apns_msg.priority) of
+      case send_payload(State, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload, Msg#apns_msg.priority) of
         ok ->
           {noreply, State#state{out_expires = Timeout}};
       {error, Reason} ->
@@ -195,6 +210,8 @@ handle_info( {ssl, SslSocket, Data}
            , State = #state{ out_socket = SslSocket
                            , connection = #apns_connection{error_fun = Error}
                            , out_buffer = CurrentBuffer
+                           , error_logger_fun = ErrorLoggerFun
+                           , name = Name
                            }) ->
   case <<CurrentBuffer/binary, Data/binary>> of
     <<Command:1/unit:8, StatusCode:1/unit:8, MsgId:4/binary, Rest/binary>> ->
@@ -208,9 +225,9 @@ handle_info( {ssl, SslSocket, Data}
             _ -> noop
           catch
             _:ErrorResult ->
-              error_logger:error_msg(
-                "Error trying to inform error (~p) msg ~p:~n\t~p~n",
-                [Status, MsgId, ErrorResult])
+              ErrorLoggerFun(
+                "[ ~p ] Error trying to inform error (~p) msg ~p: ~p",
+                [Name, Status, MsgId, ErrorResult])
           end,
           case erlang:size(Rest) of
             0 -> %% It was a whole package
@@ -230,6 +247,8 @@ handle_info( {ssl, SslSocket, Data}
                            , connection =
                               #apns_connection{feedback_fun = Feedback}
                            , in_buffer  = CurrentBuffer
+                           , error_logger_fun = ErrorLoggerFun
+                           , name = Name
                            }) ->
   case <<CurrentBuffer/binary, Data/binary>> of
     <<TimeT:4/big-unsigned-integer-unit:8,
@@ -239,8 +258,8 @@ handle_info( {ssl, SslSocket, Data}
       try call(Feedback, [{apns:timestamp(TimeT), bin_to_hexstr(Token)}])
       catch
         _:Error ->
-          error_logger:error_msg(
-            "Error trying to inform feedback token ~p:~n\t~p~n", [Token, Error])
+          ErrorLoggerFun(
+            "[ ~p ] Error trying to inform feedback token ~p: ~p", [Token, Error])
       end,
       case erlang:size(Rest) of
         0 -> {noreply, State#state{in_buffer = <<>>}}; %% It was a whole package
@@ -250,25 +269,36 @@ handle_info( {ssl, SslSocket, Data}
       {noreply, State#state{in_buffer = NextBuffer}}
   end;
 
-handle_info({ssl_closed, SslSocket}, State = #state{in_socket = SslSocket,
-                                                    connection= Connection}) ->
-  error_logger:info_msg(
-    "Feedback server disconnected. Waiting ~p millis to connect again...~n",
-    [Connection#apns_connection.feedback_timeout]),
+handle_info({ssl_closed, SslSocket}
+           , State = #state{in_socket = SslSocket
+                           ,connection= Connection
+                           , info_logger_fun = InfoLoggerFun
+                           , name = Name
+                           }) ->
+  InfoLoggerFun(
+    "[ ~p ] Feedback server disconnected. Waiting ~p millis to connect again...",
+    [Name, Connection#apns_connection.feedback_timeout]),
   _Timer =
     erlang:send_after(
       Connection#apns_connection.feedback_timeout, self(), reconnect),
   {noreply, State#state{in_socket = undefined}};
 
-handle_info(reconnect, State = #state{connection = Connection}) ->
-  error_logger:info_msg("Reconnecting the Feedback server...~n"),
+handle_info(reconnect, State = #state{connection = Connection
+                                     , info_logger_fun = InfoLoggerFun
+                                     , name = Name
+                                     }) ->
+  InfoLoggerFun("[ ~p ] Reconnecting the Feedback server...",[Name]),
   case open_feedback(Connection) of
     {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
     {error, Reason} -> {stop, {in_closed, Reason}, State}
   end;
 
-handle_info({ssl_closed, SslSocket}, State = #state{out_socket = SslSocket}) ->
-  error_logger:info_msg("APNS disconnected~n"),
+handle_info({ssl_closed, SslSocket}
+           , State = #state{out_socket = SslSocket
+                           , info_logger_fun = InfoLoggerFun
+                           , name = Name
+                            }) ->
+  InfoLoggerFun("[ ~p ] APNS disconnected"),
   {noreply, State#state{out_socket=undefined}};
 
 handle_info(Request, State) ->
@@ -336,14 +366,15 @@ do_build_payload([], Payload) ->
 
 -spec send_payload(tuple(), binary(), non_neg_integer(), binary(), binary(), integer()) ->
   ok | {error, term()}.
-send_payload(Socket, MsgId, Expiry, BinToken, Payload, Priority) ->
+send_payload(#state{out_socket = Socket, info_logger_fun = InfoLoggerFun, name = Name}
+            , MsgId, Expiry, BinToken, Payload, Priority) ->
     Frame = build_frame(MsgId, Expiry, BinToken, Payload, Priority),
     FrameLength = erlang:size(Frame),
     Packet = [<<2:8,
                 FrameLength:32/big,
                 Frame/binary>>],
-    error_logger:info_msg("Sending msg ~p (expires on ~p)~n",
-                         [MsgId, Expiry]),
+    InfoLoggerFun("[ ~p ] Sending msg ~p (expires on ~p)",
+                         [Name, MsgId, Expiry]),
     ssl:send(Socket, Packet).
 
 hexstr_to_bin(S) ->
