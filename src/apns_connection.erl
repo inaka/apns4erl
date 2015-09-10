@@ -45,7 +45,7 @@ stop(ConnId) ->
 -spec start_link(atom(), apns:connection()) ->
   {ok, pid()} | {error, {already_started, pid()}}.
 start_link(Name, Connection) ->
-  gen_server:start_link({local, Name}, ?MODULE, Connection, []).
+  gen_server:start_link({local, Name}, ?MODULE, [Name,Connection], []).
 %% @hidden
 -spec start_link(apns:connection()) -> {ok, pid()}.
 start_link(Connection) ->
@@ -73,6 +73,8 @@ build_payload(Msg) ->
 
 %% @hidden
 -spec init(apns:connection()) -> {ok, state()} | {stop, term()}.
+init([Name,Connection]) ->
+  init(Name,Connection);
 init(Connection) ->
   init(?MODULE,Connection).
 
@@ -259,7 +261,7 @@ handle_info( {ssl, SslSocket, Data}
       catch
         _:Error ->
           ErrorLoggerFun(
-            "[ ~p ] Error trying to inform feedback token ~p: ~p", [Token, Error])
+            "[ ~p ] Error trying to inform feedback token ~p: ~p", [Name, Token, Error])
       end,
       case erlang:size(Rest) of
         0 -> {noreply, State#state{in_buffer = <<>>}}; %% It was a whole package
@@ -298,7 +300,7 @@ handle_info({ssl_closed, SslSocket}
                            , info_logger_fun = InfoLoggerFun
                            , name = Name
                             }) ->
-  InfoLoggerFun("[ ~p ] APNS disconnected"),
+  InfoLoggerFun("[ ~p ] APNS disconnected", [Name]),
   {noreply, State#state{out_socket=undefined}};
 
 handle_info(Request, State) ->
