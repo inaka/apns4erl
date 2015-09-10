@@ -175,7 +175,9 @@ handle_cast(Msg, State=#state{ out_socket = undefined
     InfoLoggerFun("[ ~p ] Reconnecting to APNS...",[Name]),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
-      {ok, Socket} -> handle_cast(Msg, State#state{out_socket=Socket, out_expires = Timeout});
+      {ok, Socket} -> handle_cast(Msg,
+                                  State#state{out_socket=Socket
+                                             , out_expires = Timeout});
       {error, Reason} -> {stop, Reason}
     end
   catch
@@ -194,7 +196,8 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
       Payload = build_payload(Msg),
       BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
       apns_queue:in(State#state.queue, Msg),
-      case send_payload(State, Msg#apns_msg.id, Msg#apns_msg.expiry, BinToken, Payload, Msg#apns_msg.priority) of
+      case send_payload(State, Msg#apns_msg.id, Msg#apns_msg.expiry,
+                        BinToken, Payload, Msg#apns_msg.priority) of
         ok ->
           {noreply, State#state{out_expires = Timeout}};
       {error, Reason} ->
@@ -276,7 +279,7 @@ handle_info( {ssl, SslSocket, Data}
 
 handle_info({ssl_closed, SslSocket}
            , State = #state{in_socket = SslSocket
-                           ,connection= Connection
+                           , connection= Connection
                            , info_logger_fun = InfoLoggerFun
                            , name = Name
                            }) ->
