@@ -266,8 +266,8 @@ handle_info( {ssl, SslSocket, Data}
       catch
         _:Error ->
           ErrorLoggerFun(
-            "[ ~p ] Error trying to inform feedback token ~p: ~p",
-            [Name, Token, Error])
+            "[ ~p ] Error trying to inform feedback token ~p: ~p~n~p",
+            [Name, Token, Error, erlang:get_stacktrace()])
       end,
       case erlang:size(Rest) of
         0 -> {noreply, State#state{in_buffer = <<>>}}; %% It was a whole package
