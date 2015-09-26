@@ -8,6 +8,9 @@ dep_sync = git https://github.com/inaka/sync.git 0.1
 dep_katana =  git https://github.com/inaka/erlang-katana 0.2.0
 dep_eper = git https://github.com/massemanet/eper.git 0.90.0
 
+TEST_DEPS = mock_apns
+dep_mock_apns = git https://github.com/tomekowal/mockapn.git 4b4c1fd21706060eba2142cc405ce7c8b3396513
+
 include erlang.mk
 
 ERLC_OPTS += +warn_unused_vars +warn_export_all +warn_shadow_vars +warn_unused_import +warn_unused_function

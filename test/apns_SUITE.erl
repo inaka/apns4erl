@@ -3,6 +3,7 @@
 
 -include("apns.hrl").
 -include("localized.hrl").
+-include_lib("common_test/include/ct.hrl").
 -define(DEVICE_TOKEN,
         "139D3CAB173FB230B97E4A19D288E3FBCD4B037F9B18ABA17FE4CDE72085E994").
 
@@ -23,7 +24,9 @@ end_per_suite(Config) ->
 
 %%% Tests
 -spec minimal(_) -> {comment, []}.
-minimal(_Config) ->
+minimal(Config) ->
+  given_mock_apn(Config),
+  given_ssl_config(Config),
   Now = lists:flatten(io_lib:format("~p", [calendar:local_time()])),
   ok = apns:start(),
   {ok, Pid} =
@@ -81,8 +84,7 @@ minimal(_Config) ->
                                  expiry = apns:expiry(86400),
                                  alert = "Low Priority alert",
                                  priority = 0}),
-    monitor_process_for_a_second(Ref)
-  end.
+  monitor_process_for_a_second(Ref).
 
 log_error(MsgId, Status) ->
   error_logger:error_msg("Error on msg ~p: ~p~n", [MsgId, Status]).
@@ -99,3 +101,16 @@ monitor_process_for_a_second(Ref) ->
   after 1000 ->
     ok
   end.
+
+given_mock_apn(Config) ->
+  % applications are loaded during start, which overwrites env variables
+  % but if you first load the app, it is not loaded second time during app start
+  application:load(mock_apn),
+  application:set_env(mock_apn, certfile, ?config(data_dir, Config) ++ "cert.pem"),
+  application:set_env(mock_apn, keyfile, ?config(data_dir, Config) ++ "key.pem"),
+  application:ensure_started(mock_apn).
+
+given_ssl_config(Config) ->
+  application:load(apns),
+  application:set_env(apns, cert_file, ?config(data_dir, Config) ++ "cert.pem"),
+  application:set_env(apns, key_file, ?config(data_dir, Config) ++ "key.pem").
