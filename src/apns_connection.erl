@@ -200,7 +200,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
                         BinToken, Payload, Msg#apns_msg.priority) of
         ok ->
           {noreply, State#state{out_expires = Timeout}};
-      {error, Reason} ->
+      {error, Reason} -> 
         apns_queue:fail(State#state.queue, Msg#apns_msg.id),
         {stop, {error, Reason}, State}
     end
@@ -215,7 +215,7 @@ handle_cast(stop, State) ->
       {noreply, state()} | {stop, ssl_closed | {unknown_request, X}, state()}.
 handle_info( {ssl, SslSocket, Data}
            , State = #state{ out_socket = SslSocket
-                           , connection = #apns_connection{error_fun = Error}
+                           , connection = #apns_connection{error_fun = Error, feedback_fun = DeleteSubscription}
                            , out_buffer = CurrentBuffer
                            , error_logger_fun = ErrorLoggerFun
                            , name = Name
@@ -225,7 +225,13 @@ handle_info( {ssl, SslSocket, Data}
       case Command of
         8 -> %% Error
           Status = parse_status(StatusCode),
-          {_MsgFailed, RestMsg} = apns_queue:fail(State#state.queue, MsgId),
+          {MsgFailed, RestMsg} = apns_queue:fail(State#state.queue, MsgId),
+          case Status of 
+              invalid_token -> 
+                  DeviceToken = MsgFailed#apns_msg.device_token,
+                  call(DeleteSubscription, [{ok, DeviceToken}]);
+              _ -> ok
+          end,
           [send_message(self(), M) || M <- RestMsg],
           try call(Error, [MsgId, Status]) of
             stop -> throw({stop, {msg_error, MsgId, Status}, State});
