@@ -1,6 +1,11 @@
 Apns4erl
 ========
 
+# NOTICE
+**This project is not supported anymore.**
+It's still here just to support legacy projects that may have it as a dependency.
+It's operational (at least, for Erlang versions lower than R17)
+
 This lib is intended to allow you to write an APNs provider for Apple Push Notificaion services (APNs) in Erlang.
 
 Copyright (c) 2010 Inaka Labs SRL <support@inaka.net>, released under the MIT license
