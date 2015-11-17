@@ -2,11 +2,9 @@ PROJECT=apns
 
 CONFIG?=priv/app.config
 
-DEPS = jiffy sync katana eper
-dep_jiffy = git https://github.com/davisp/jiffy 0.13.3
+DEPS = jiffy sync
+dep_jiffy = git https://github.com/davisp/jiffy 0.14.3
 dep_sync = git https://github.com/inaka/sync.git 0.1
-dep_katana =  git https://github.com/inaka/erlang-katana 0.2.0
-dep_eper = git https://github.com/massemanet/eper.git 0.90.0
 
 TEST_DEPS = mock_apns
 dep_mock_apns = git https://github.com/tomekowal/mockapn.git 4b4c1fd21706060eba2142cc405ce7c8b3396513
