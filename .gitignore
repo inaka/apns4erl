@@ -1,3 +1,4 @@
+.rebar/
 deps
 ebin
 log/*.log
