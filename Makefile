@@ -4,7 +4,7 @@ CONFIG?=priv/app.config
 
 DEPS = jiffy sync
 dep_jiffy = git https://github.com/davisp/jiffy 0.14.3
-dep_sync = git https://github.com/inaka/sync.git 0.1
+dep_sync = git https://github.com/rustyio/sync.git 9c78e7b
 
 TEST_DEPS = mock_apns
 dep_mock_apns = git https://github.com/tomekowal/mockapn.git 4b4c1fd21706060eba2142cc405ce7c8b3396513
