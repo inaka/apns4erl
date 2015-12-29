@@ -118,8 +118,8 @@ connect(ErrorFun, FeedbackFun) when is_function(ErrorFun, 2) andalso
 
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback and error functions
--spec connect(
-  atom() | string(), fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) ->
+-spec connect(atom() | string(),
+    fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) ->
     {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, ErrorFun, FeedbackFun) ->
   connect(
