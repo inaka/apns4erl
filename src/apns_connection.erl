@@ -24,7 +24,7 @@
                 out_expires       :: integer(),
                 error_logger_fun  :: fun((string(), list()) -> _),
                 info_logger_fun   :: fun((string(), list()) -> _),
-                name              :: atom()}).
+                name              :: atom() | string()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

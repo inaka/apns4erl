@@ -101,19 +101,25 @@ connect(Fun) when is_function(Fun, 2) ->
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback or error function
 %%      or using the given connection() parameters
--spec connect(atom(), string() | fun((string()) -> _) | connection()) ->
+-spec connect(atom()| string() | fun((binary(), apns:status()) -> stop | _), 
+              fun((string()) -> _) | connection()) ->
     {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
   apns_sup:start_connection(Name, Connection);
 connect(Name, Fun) when is_function(Fun, 1) ->
   connect(Name, (default_connection())#apns_connection{feedback_fun = Fun});
 connect(Name, Fun) when is_function(Fun, 2) ->
-  connect(Name, (default_connection())#apns_connection{error_fun = Fun}).
+  connect(Name, (default_connection())#apns_connection{error_fun = Fun});
+connect(ErrorFun, FeedbackFun) when is_function(ErrorFun, 2) andalso
+                                    is_function(FeedbackFun, 1) ->
+  connect((default_connection())#apns_connection{error_fun = ErrorFun,
+                                                 feedback_fun = FeedbackFun}).
+
 
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback and error functions
--spec connect(
-  atom(), fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) ->
+-spec connect(atom() | string(),
+    fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) ->
     {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, ErrorFun, FeedbackFun) ->
   connect(
