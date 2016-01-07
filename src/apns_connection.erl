@@ -194,7 +194,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
       Connection = State#state.connection,
       Timeout = epoch() + Connection#apns_connection.expires_conn,
       Payload = build_payload(Msg),
-      BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
+      BinToken = hex_to_bin(Msg#apns_msg.device_token),
       apns_queue:in(State#state.queue, Msg),
       case send_payload(State, Msg#apns_msg.id, Msg#apns_msg.expiry,
                         BinToken, Payload, Msg#apns_msg.priority) of
@@ -388,15 +388,26 @@ send_payload(#state{out_socket = Socket
                          [Name, MsgId, Expiry]),
     ssl:send(Socket, Packet).
 
-hexstr_to_bin(S) ->
-  hexstr_to_bin(S, []).
-hexstr_to_bin([], Acc) ->
+hex_to_bin(S)when is_list(S) ->
+  hex_to_bin(S, []);
+hex_to_bin(S)when is_binary(S) ->
+  hex_to_bin(S, <<>>).
+
+hex_to_bin([], Acc) ->
   list_to_binary(lists:reverse(Acc));
-hexstr_to_bin([$ |T], Acc) ->
-    hexstr_to_bin(T, Acc);
-hexstr_to_bin([X, Y|T], Acc) ->
+hex_to_bin([$ |T], Acc) ->
+    hex_to_bin(T, Acc);
+hex_to_bin([X, Y|T], Acc) ->
   {ok, [V], []} = io_lib:fread("~16u", [X, Y]),
-  hexstr_to_bin(T, [V | Acc]).
+  hex_to_bin(T, [V | Acc]);
+%%
+hex_to_bin(<<>>, Acc) ->
+  Acc;
+hex_to_bin(<<$ , Rest/binary>>, Acc) ->
+  hex_to_bin(Rest, Acc);
+hex_to_bin(<<X, Y, Rest/binary>>, Acc) ->
+  {ok, [V], []} = io_lib:fread("~16u", [X, Y]),
+  hex_to_bin(Rest, <<Acc/binary, V>>).
 
 bin_to_hexstr(Binary) ->
     L = size(Binary),
