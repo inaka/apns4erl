@@ -172,7 +172,7 @@ handle_cast(Msg, State=#state{ out_socket = undefined
                              , name = Name
                              }) ->
   try
-    InfoLoggerFun("[ ~p ] Reconnecting to APNS...",[Name]),
+    InfoLoggerFun("[ ~p ] Reconnecting to APNS...", [Name]),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
       {ok, Socket} -> handle_cast(Msg,
@@ -189,7 +189,7 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   case State#state.out_expires =< epoch() of
     true ->
       ssl:close(Socket),
-      handle_cast(Msg,State#state{out_socket = undefined});
+      handle_cast(Msg, State#state{out_socket = undefined});
     false ->
       Connection = State#state.connection,
       Timeout = epoch() + Connection#apns_connection.expires_conn,
@@ -296,7 +296,7 @@ handle_info(reconnect, State = #state{connection = Connection
                                      , info_logger_fun = InfoLoggerFun
                                      , name = Name
                                      }) ->
-  InfoLoggerFun("[ ~p ] Reconnecting the Feedback server...",[Name]),
+  InfoLoggerFun("[ ~p ] Reconnecting the Feedback server...", [Name]),
   case open_feedback(Connection) of
     {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
     {error, Reason} -> {stop, {in_closed, Reason}, State}
@@ -437,11 +437,11 @@ build_frame(MsgId, Expiry, BinToken, Payload, Priority) ->
     5:8, 1:16/big, Priority:8>>.
 
 epoch() ->
-  {M,S,_} = os:timestamp(),
+  {M, S, _} = os:timestamp(),
   M * 1000000 + S.
 
 call(Fun, Args) when is_function(Fun), is_list(Args) ->
     apply(Fun, Args);
-call({M,F}, Args) when is_list(Args) ->
-    apply(M,F,Args).
+call({M, F}, Args) when is_list(Args) ->
+    apply(M, F, Args).
 
