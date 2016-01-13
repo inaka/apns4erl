@@ -35,9 +35,9 @@
 
 -type state() :: #state{}.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Public API
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc  Stops the connection
 -spec stop(QID :: pid()) -> ok.
@@ -57,9 +57,9 @@ fail(QID, ID) ->
 start_link() ->
   gen_server:start_link(?MODULE, [], []).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Server implementation, a.k.a.: callbacks
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @hidden
 -spec init([]) -> {ok, state()}.
@@ -67,11 +67,12 @@ init([]) ->
     {ok, #state{}}.
 
 %% @hidden
--spec handle_cast(stop | term(), state()) -> {noreply, state()} | {stop, normal | {error, term()}, state()}.
+-spec handle_cast(stop | term(), state()) ->
+    {noreply, state()} | {stop, normal | {error, term()}, state()}.
 handle_cast(stop, State) ->
     {stop, normal, State};
 
-handle_cast({in, Msg}, #state{max_entries=MaxEntries,queue=OldQueue}=State) ->
+handle_cast({in, Msg}, #state{max_entries=MaxEntries, queue=OldQueue}=State) ->
     Queue = case MaxEntries =< queue:len(OldQueue) of
         true -> queue:liat(OldQueue);
         false -> OldQueue
@@ -82,7 +83,8 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% @hidden
--spec handle_call(X::term(), reference(), state()) -> {reply, {Failed::apns:msg(), RestToRetry::[apns:msg()]}, state()}.
+-spec handle_call(X::term(), reference(), state()) ->
+    {reply, {Failed::apns:msg(), RestToRetry::[apns:msg()]}, state()}.
 handle_call({fail, ID}, _From, #state{queue=Queue}=State) ->
     {reply, recover_fail(ID, Queue), State#state{queue=queue:new()}};
 
@@ -104,11 +106,12 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Server implementation, a.k.a.: callbacks
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec recover_fail(ID::binary(), Queue::queue:queue()) -> {apns:msg(), [apns:msg()]}.
+-spec recover_fail(ID::binary(), Queue::queue:queue()) ->
+    {apns:msg(), [apns:msg()]}.
 %@hidden
 recover_fail(ID, Queue) ->
     Now = apns:expiry(0),

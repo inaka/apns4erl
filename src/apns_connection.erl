@@ -24,7 +24,7 @@
                 out_expires       :: integer(),
                 error_logger_fun  :: fun((string(), list()) -> _),
                 info_logger_fun   :: fun((string(), list()) -> _),
-                name              :: atom()}).
+                name              :: atom() | string()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -172,7 +172,7 @@ handle_cast(Msg, State=#state{ out_socket = undefined
                              , name = Name
                              }) ->
   try
-    InfoLoggerFun("[ ~p ] Reconnecting to APNS...",[Name]),
+    InfoLoggerFun("[ ~p ] Reconnecting to APNS...", [Name]),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
       {ok, Socket} -> handle_cast(Msg,
@@ -189,12 +189,12 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
   case State#state.out_expires =< epoch() of
     true ->
       ssl:close(Socket),
-      handle_cast(Msg,State#state{out_socket = undefined});
+      handle_cast(Msg, State#state{out_socket = undefined});
     false ->
       Connection = State#state.connection,
       Timeout = epoch() + Connection#apns_connection.expires_conn,
       Payload = build_payload(Msg),
-      BinToken = hexstr_to_bin(Msg#apns_msg.device_token),
+      BinToken = hex_to_bin(Msg#apns_msg.device_token),
       apns_queue:in(State#state.queue, Msg),
       case send_payload(State, Msg#apns_msg.id, Msg#apns_msg.expiry,
                         BinToken, Payload, Msg#apns_msg.priority) of
@@ -296,7 +296,7 @@ handle_info(reconnect, State = #state{connection = Connection
                                      , info_logger_fun = InfoLoggerFun
                                      , name = Name
                                      }) ->
-  InfoLoggerFun("[ ~p ] Reconnecting the Feedback server...",[Name]),
+  InfoLoggerFun("[ ~p ] Reconnecting the Feedback server...", [Name]),
   case open_feedback(Connection) of
     {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
     {error, Reason} -> {stop, {in_closed, Reason}, State}
@@ -389,15 +389,26 @@ send_payload(#state{out_socket = Socket
                          [Name, MsgId, Expiry]),
     ssl:send(Socket, Packet).
 
-hexstr_to_bin(S) ->
-  hexstr_to_bin(S, []).
-hexstr_to_bin([], Acc) ->
+hex_to_bin(S)when is_list(S) ->
+  hex_to_bin(S, []);
+hex_to_bin(S)when is_binary(S) ->
+  hex_to_bin(S, <<>>).
+
+hex_to_bin([], Acc) ->
   list_to_binary(lists:reverse(Acc));
-hexstr_to_bin([$ |T], Acc) ->
-    hexstr_to_bin(T, Acc);
-hexstr_to_bin([X, Y|T], Acc) ->
+hex_to_bin([$ |T], Acc) ->
+    hex_to_bin(T, Acc);
+hex_to_bin([X, Y|T], Acc) ->
   {ok, [V], []} = io_lib:fread("~16u", [X, Y]),
-  hexstr_to_bin(T, [V | Acc]).
+  hex_to_bin(T, [V | Acc]);
+%%
+hex_to_bin(<<>>, Acc) ->
+  Acc;
+hex_to_bin(<<$ , Rest/binary>>, Acc) ->
+  hex_to_bin(Rest, Acc);
+hex_to_bin(<<X, Y, Rest/binary>>, Acc) ->
+  {ok, [V], []} = io_lib:fread("~16u", [X, Y]),
+  hex_to_bin(Rest, <<Acc/binary, V>>).
 
 bin_to_hexstr(Binary) ->
     L = size(Binary),
@@ -427,11 +438,11 @@ build_frame(MsgId, Expiry, BinToken, Payload, Priority) ->
     5:8, 1:16/big, Priority:8>>.
 
 epoch() ->
-  {M,S,_} = os:timestamp(),
+  {M, S, _} = os:timestamp(),
   M * 1000000 + S.
 
 call(Fun, Args) when is_function(Fun), is_list(Args) ->
     apply(Fun, Args);
-call({M,F}, Args) when is_list(Args) ->
-    apply(M,F,Args).
+call({M, F}, Args) when is_list(Args) ->
+    apply(M, F, Args).
 
