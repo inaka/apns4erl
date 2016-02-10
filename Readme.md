@@ -36,7 +36,7 @@ Using apns4erl is quite simple. First, setup something similar to this in your s
 
 **NOTE**: The *apple_host* to use will depend on your environment (production or development). Remember to always use the **correct** certificate, device tokens, and apns hostname for production or development environments.
 
-**NOTE 2**: To generate the .pem file, from the .cer an .p12 files provided by Apple, you can use [this script](/inaka/apns4erl/blob/master/priv/test_certs)
+**NOTE 2**: To generate the .pem file, from the .cer an .p12 files provided by Apple, you can use [this script](https://github.com/inaka/apns4erl/blob/master/priv/test_certs)
 
 Then, once you've started the apns application, you can connect to the APNS network using:
 
