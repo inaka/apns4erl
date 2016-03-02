@@ -315,7 +315,9 @@ handle_info(Request, State) ->
 
 %% @hidden
 -spec terminate(term(), state()) -> ok.
-terminate(_Reason, _State) -> ok.
+terminate(_Reason, #state{queue = QID}) ->
+    apns_queue:stop(QID),
+    ok.
 
 %% @hidden
 -spec code_change(term(), state(), term()) -> {ok, state()}.
