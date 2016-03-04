@@ -201,7 +201,8 @@ handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
         ok ->
           {noreply, State#state{out_expires = Timeout}};
       {error, Reason} ->
-        State#state.info_logger_fun("[ ~p ]ssl error:", [Socket]),
+        InfoLoggerFun = State#state.info_logger_fun,
+        InfoLoggerFun("[ ~p ]ssl error:", [Socket]),
         ssl:close(Socket),
         handle_cast(Msg, State#state{out_socket = undefined}),
 %%        apns_queue:fail(State#state.queue, Msg#apns_msg.id),
