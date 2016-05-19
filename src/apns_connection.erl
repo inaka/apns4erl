@@ -178,10 +178,10 @@ handle_cast(Msg, State=#state{ out_socket = undefined
       {ok, Socket} -> handle_cast(Msg,
                                   State#state{out_socket=Socket
                                              , out_expires = Timeout});
-      {error, Reason} -> {stop, Reason}
+      {error, Reason} -> {stop, {error, Reason}, State}
     end
   catch
-    _:{error, Reason2} -> {stop, Reason2}
+    _:{error, Reason2} -> {stop, {error, Reason2}, State}
   end;
 
 handle_cast(Msg, State) when is_record(Msg, apns_msg) ->
