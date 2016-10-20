@@ -30,6 +30,7 @@
                    badge = none                 :: none | integer(),
                    category = none              :: none | string(),
                    sound = none                 :: none | apns:apns_str(),
+                   mutable_content = none       :: none | integer(),
                    apns_extra = []              :: none | [{atom(), integer()|boolean()|string()}],
                    extra = []                   :: proplists:proplist(),
                    priority = 10                :: integer()}).
