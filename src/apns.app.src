@@ -1,0 +1,16 @@
+{application, apns, [
+  {description, "APNs provider for Apple Push Notification services (APNs) in Erlang"},
+  {vsn, "2.0.0"},
+  {id, "apns"},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib
+  ]},
+  {modules, []},
+  {mod, {apns_app, []}},
+  {maintainers,["Inaka"]},
+  {licenses,["Apache 2.0"]},
+  {links,[{"Github","https://github.com/inaka/apns4erl"}]},
+  {build_tools, ["rebar3"]}
+]}.
