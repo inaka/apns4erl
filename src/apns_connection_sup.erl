@@ -1,4 +1,4 @@
-%%% @doc Main apns4erl's supervisor.
+%%% @doc apns4erl connection's supervisor.
 %%%
 %%% Copyright 2017 Erlang Solutions Ltd.
 %%%
@@ -16,13 +16,12 @@
 %%% @end
 %%% @copyright Inaka <hello@inaka.net>
 %%%
--module(apns_sup).
+-module(apns_connection_sup).
 -author("Felipe Ripoll <felipe@inakanetworks.com>").
 -behaviour(supervisor).
 
 %% API
--export([ start_link/0
-        , create_connection/1
+-export([ start_link/1
         ]).
 
 %% Supervisor callbacks
@@ -39,16 +38,10 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec start_link() ->
+-spec start_link(apns_connection:connection()) ->
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
-start_link() ->
-  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
-
-%% @doc Creates a new connection. It needs an apns_connection:connection()
-%%      parameter in order to create the connection with APNs.
--spec create_connection(apns_connection:connection()) -> {ok, pid()}.
-create_connection(Connection) ->
-  supervisor:start_child(?MODULE, [Connection]).
+start_link(Connection) ->
+  supervisor:start_link(?MODULE, Connection).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -56,18 +49,18 @@ create_connection(Connection) ->
 
 -spec init(any()) ->
   {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
-init([]) ->
-  SupFlags = #{ strategy  => simple_one_for_one
+init(Connection) ->
+  SupFlags = #{ strategy  => one_for_one
               , intensity => 1000
               , period    => 3600
               },
 
-  Children = [#{ id       => apns_connection_sup
-               , start    => {apns_connection_sup, start_link, []}
-               , restart  => transient
-               , shutdown => 5000
-               , type     => supervisor
-               , modules  => [apns_connection_sup]
-               }],
+  Child = #{ id       => apns_connection
+           , start    => {apns_connection, start_link, [Connection]}
+           , restart  => permanent
+           , shutdown => 5000
+           , type     => worker
+           , modules  => [apns_connection]
+           },
 
-  {ok, {SupFlags, Children}}.
+  {ok, {SupFlags, [Child]}}.
