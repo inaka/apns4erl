@@ -1,6 +1,6 @@
 %%% @doc apns4erl connection's supervisor.
 %%%
-%%% Copyright 2017 Inaka &lt;hello@inaka.net&gt;
+%%% Copyright 2017 Erlang Solutions Ltd.
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
