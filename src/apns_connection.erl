@@ -29,6 +29,7 @@
         , port/1
         , certfile/1
         , keyfile/1
+        , gun_connection/1
         ]).
 
 %% gen_server callbacks
@@ -59,6 +60,7 @@
 
 -type state()        :: #{ connection     := connection()
                          , gun_connection := pid()
+                         , gun_monitor    := reference()
                          }.
 
 %%%===================================================================
@@ -87,27 +89,30 @@ default_connection(ConnectionName) ->
    , keyfile    => Keyfile
   }.
 
+%% @doc Returns the gun's connection PID. This function is only used in tests.
+-spec gun_connection(name()) -> pid().
+gun_connection(ConnectionName) ->
+  gen_server:call(ConnectionName, gun_connection).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
 -spec init(connection()) -> {ok, State :: state()}.
 init(Connection) ->
-  Certfile = certfile(Connection),
-  Keyfile = keyfile(Connection),
-  Host = host(Connection),
-  Port = port(Connection),
-  TransportOpts = [{certfile, Certfile}, {keyfile, Keyfile}],
-  {ok, ConnPid} = gun:open(Host, Port, #{protocols => [http2]
-                                        , transport_opts => TransportOpts
-                                        }),
-  {ok, #{connection => Connection, gun_connection => ConnPid}}.
+  {GunMonitor, GunConnectionPid} = open_gun_connection(Connection),
+  {ok, #{ connection     => Connection
+        , gun_connection => GunConnectionPid
+        , gun_monitor    => GunMonitor
+        }}.
 
 -spec handle_call( Request :: term()
                  , From    :: {pid()
                  , Tag     :: term()}
                  , State
                  ) -> {reply, ok, State}.
+handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
+  {reply, GunConn, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -118,6 +123,13 @@ handle_cast(_Request, State) ->
 
 -spec handle_info(Info :: timeout() | term(), State) ->
   {noreply, State}.
+handle_info( {'DOWN', GunMonitor, process, GunConnPid, _}
+           , #{ gun_connection := GunConnPid
+              , gun_monitor    := GunMonitor
+              , connection     := Connection
+              } = State) ->
+  {GunMonitor2, GunConnPid2} = open_gun_connection(Connection),
+  {noreply, State#{gun_connection => GunConnPid2, gun_monitor => GunMonitor2}};
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -161,3 +173,20 @@ keyfile(#{keyfile := Keyfile}) ->
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
+-spec open_gun_connection(connection()) -> { GunMonitor       :: reference()
+                                           , GunConnectionPid :: pid()
+                                           }.
+open_gun_connection(Connection) ->
+  Certfile = certfile(Connection),
+  Keyfile = keyfile(Connection),
+  Host = host(Connection),
+  Port = port(Connection),
+  TransportOpts = [{certfile, Certfile}, {keyfile, Keyfile}],
+  {ok, GunConnectionPid} = gun:open( Host
+                                   , Port
+                                   , #{ protocols => [http2]
+                                      , transport_opts => TransportOpts
+                                      }),
+  GunMonitor = monitor(process, GunConnectionPid),
+  {GunMonitor, GunConnectionPid}.

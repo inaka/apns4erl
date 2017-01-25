@@ -8,6 +8,7 @@
 
 -export([ default_connection/1
         , connect/1
+        , gun_connection_crashes/1
         ]).
 
 -type config() :: [{atom(), term()}].
@@ -19,6 +20,7 @@
 -spec all() -> [atom()].
 all() ->  [ default_connection
           , connect
+          , gun_connection_crashes
           ].
 
 -spec init_per_suite(config()) -> config().
@@ -57,3 +59,32 @@ connect(_Config) ->
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
   ok.
+
+-spec gun_connection_crashes(config()) -> ok.
+gun_connection_crashes(_Config) ->
+  ok = meck:expect(gun, open, fun(_, _, _) ->
+      {ok, spawn(fun crash/0)}
+    end),
+  ConnectionName = my_connection2,
+  {ok, _ServerPid}  = apns:connect(ConnectionName),
+  GunPid = apns_connection:gun_connection(ConnectionName),
+  true = is_process_alive(GunPid),
+  GunPid ! crash,
+  timer:sleep(1000),
+  false = is_process_alive(GunPid),
+  GunPid2 = apns_connection:gun_connection(ConnectionName),
+  true = is_process_alive(GunPid2),
+  true = (GunPid =/= GunPid2),
+  [_] = meck:unload(),
+  ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Internal Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec crash() -> ok.
+crash() ->
+  receive
+    crash -> exit(crashed);
+    _     -> ok
+  end.
