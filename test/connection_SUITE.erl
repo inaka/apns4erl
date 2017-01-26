@@ -58,6 +58,8 @@ connect(_Config) ->
   {ok, ServerPid}  = apns:connect(ConnectionName),
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
+  ok = apns:close_connection(ConnectionName),
+  undefined = whereis(ConnectionName),
   ok.
 
 -spec gun_connection_crashes(config()) -> ok.
@@ -75,6 +77,8 @@ gun_connection_crashes(_Config) ->
   GunPid2 = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid2),
   true = (GunPid =/= GunPid2),
+  ok = apns:close_connection(ConnectionName),
+  false = is_process_alive(GunPid2),
   [_] = meck:unload(),
   ok.
 

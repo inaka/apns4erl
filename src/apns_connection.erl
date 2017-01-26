@@ -17,7 +17,7 @@
 %%% @copyright Inaka <hello@inaka.net>
 %%%
 -module(apns_connection).
--author("Felipe Ripoll <ferigis@inakanetworks.com>").
+-author("Felipe Ripoll <felipe@inakanetworks.com>").
 
 -behaviour(gen_server).
 
@@ -30,6 +30,7 @@
         , certfile/1
         , keyfile/1
         , gun_connection/1
+        , close_connection/1
         ]).
 
 %% gen_server callbacks
@@ -89,6 +90,11 @@ default_connection(ConnectionName) ->
    , keyfile    => Keyfile
   }.
 
+%% @doc Close the connection with APNs gracefully
+-spec close_connection(name()) -> ok.
+close_connection(ConnectionName) ->
+  gen_server:call(ConnectionName, stop).
+
 %% @doc Returns the gun's connection PID. This function is only used in tests.
 -spec gun_connection(name()) -> pid().
 gun_connection(ConnectionName) ->
@@ -113,6 +119,8 @@ init(Connection) ->
                  ) -> {reply, ok, State}.
 handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
   {reply, GunConn, State};
+handle_call(stop, _From, State) ->
+  {stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -136,7 +144,8 @@ handle_info(_Info, State) ->
 -spec terminate( Reason :: (normal | shutdown | {shutdown, term()} | term())
                , State  :: map()
                ) -> term().
-terminate(_Reason, _State) ->
+terminate(_Reason, #{gun_connection := GunConn}) ->
+  ok = gun:shutdown(GunConn),
   ok.
 
 -spec code_change(OldVsn :: term() | {down, term()}
