@@ -59,8 +59,7 @@ connect(_Config) ->
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
   ok = apns:close_connection(ConnectionName),
-  timer:sleep(1000),
-  undefined = whereis(ConnectionName),
+  ktn_task:wait_for(fun() -> whereis(ConnectionName) end, undefined),
   ok.
 
 -spec gun_connection_crashes(config()) -> ok.
@@ -73,14 +72,12 @@ gun_connection_crashes(_Config) ->
   GunPid = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid),
   GunPid ! crash,
-  timer:sleep(1000),
-  false = is_process_alive(GunPid),
+  ktn_task:wait_for(fun() -> is_process_alive(GunPid) end, false),
   GunPid2 = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid2),
   true = (GunPid =/= GunPid2),
   ok = apns:close_connection(ConnectionName),
-  timer:sleep(1000),
-  false = is_process_alive(GunPid2),
+  ktn_task:wait_for(fun() -> is_process_alive(GunPid2) end, false),
   [_] = meck:unload(),
   ok.
 

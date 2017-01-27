@@ -142,10 +142,9 @@ handle_info(_Info, State) ->
   {noreply, State}.
 
 -spec terminate( Reason :: (normal | shutdown | {shutdown, term()} | term())
-               , State  :: map()
+               , State  :: state()
                ) -> ok.
-terminate(_Reason, #{gun_connection := GunConn}) ->
-  gun:shutdown(GunConn),
+terminate(_Reason, _State) ->
   ok.
 
 -spec code_change(OldVsn :: term() | {down, term()}
