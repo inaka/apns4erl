@@ -59,6 +59,7 @@ connect(_Config) ->
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
   ok = apns:close_connection(ConnectionName),
+  timer:sleep(1000),
   undefined = whereis(ConnectionName),
   ok.
 
@@ -78,6 +79,7 @@ gun_connection_crashes(_Config) ->
   true = is_process_alive(GunPid2),
   true = (GunPid =/= GunPid2),
   ok = apns:close_connection(ConnectionName),
+  timer:sleep(1000),
   false = is_process_alive(GunPid2),
   [_] = meck:unload(),
   ok.

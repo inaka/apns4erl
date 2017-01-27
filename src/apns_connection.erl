@@ -93,7 +93,7 @@ default_connection(ConnectionName) ->
 %% @doc Close the connection with APNs gracefully
 -spec close_connection(name()) -> ok.
 close_connection(ConnectionName) ->
-  gen_server:call(ConnectionName, stop).
+  gen_server:cast(ConnectionName, stop).
 
 %% @doc Returns the gun's connection PID. This function is only used in tests.
 -spec gun_connection(name()) -> pid().
@@ -119,13 +119,13 @@ init(Connection) ->
                  ) -> {reply, ok, State}.
 handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
   {reply, GunConn, State};
-handle_call(stop, _From, State) ->
-  {stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
 -spec handle_cast(Request :: term(), State) ->
   {noreply, State}.
+handle_cast(stop, State) ->
+  {stop, normal, State};
 handle_cast(_Request, State) ->
   {noreply, State}.
 
@@ -143,9 +143,9 @@ handle_info(_Info, State) ->
 
 -spec terminate( Reason :: (normal | shutdown | {shutdown, term()} | term())
                , State  :: map()
-               ) -> term().
+               ) -> ok.
 terminate(_Reason, #{gun_connection := GunConn}) ->
-  ok = gun:shutdown(GunConn),
+  gun:shutdown(GunConn),
   ok.
 
 -spec code_change(OldVsn :: term() | {down, term()}
