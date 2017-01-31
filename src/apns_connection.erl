@@ -17,7 +17,7 @@
 %%% @copyright Inaka <hello@inaka.net>
 %%%
 -module(apns_connection).
--author("Felipe Ripoll <ferigis@inakanetworks.com>").
+-author("Felipe Ripoll <felipe@inakanetworks.com>").
 
 -behaviour(gen_server).
 
@@ -30,6 +30,7 @@
         , certfile/1
         , keyfile/1
         , gun_connection/1
+        , close_connection/1
         ]).
 
 %% gen_server callbacks
@@ -89,6 +90,11 @@ default_connection(ConnectionName) ->
    , keyfile    => Keyfile
   }.
 
+%% @doc Close the connection with APNs gracefully
+-spec close_connection(name()) -> ok.
+close_connection(ConnectionName) ->
+  gen_server:cast(ConnectionName, stop).
+
 %% @doc Returns the gun's connection PID. This function is only used in tests.
 -spec gun_connection(name()) -> pid().
 gun_connection(ConnectionName) ->
@@ -118,6 +124,8 @@ handle_call(_Request, _From, State) ->
 
 -spec handle_cast(Request :: term(), State) ->
   {noreply, State}.
+handle_cast(stop, State) ->
+  {stop, normal, State};
 handle_cast(_Request, State) ->
   {noreply, State}.
 
@@ -134,8 +142,8 @@ handle_info(_Info, State) ->
   {noreply, State}.
 
 -spec terminate( Reason :: (normal | shutdown | {shutdown, term()} | term())
-               , State  :: map()
-               ) -> term().
+               , State  :: state()
+               ) -> ok.
 terminate(_Reason, _State) ->
   ok.
 

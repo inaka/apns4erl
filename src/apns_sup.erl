@@ -62,12 +62,12 @@ init([]) ->
               , period    => 3600
               },
 
-  Children = [#{ id       => apns_connection_sup
-               , start    => {apns_connection_sup, start_link, []}
+  Children = [#{ id       => apns_connection
+               , start    => {apns_connection, start_link, []}
                , restart  => transient
                , shutdown => 5000
-               , type     => supervisor
-               , modules  => [apns_connection_sup]
+               , type     => worker
+               , modules  => [apns_connection]
                }],
 
   {ok, {SupFlags, Children}}.
