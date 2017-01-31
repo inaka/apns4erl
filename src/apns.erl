@@ -36,8 +36,9 @@
 
 -type json()      :: #{binary() => binary() | json()}.
 -type device_id() :: string().
--type response()  :: { integer()  % HTTP2 Code
-                     , [term()]   % Data from APNs server
+-type response()  :: { integer()          % HTTP2 Code
+                     , [term()]           % Response Headers
+                     , [term()] | no_body % Response Body
                      } | timeout.
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
@@ -63,14 +64,15 @@ stop() ->
   ok.
 
 %% @doc Connects to APNs service with Provider Certificate
--spec connect( apns_connection:name()
-             | apns_connection:connection()) -> {ok, pid()}.
+-spec connect( apns_connection:name() | apns_connection:connection()) ->
+  {ok, pid()} | {error, timeout}.
 connect(ConnectionName) when is_atom(ConnectionName) ->
   DefaultConnection = apns_connection:default_connection(ConnectionName),
   connect(DefaultConnection);
 connect(Connection) ->
   {ok, _} = apns_sup:create_connection(Connection),
-  {ok, whereis(apns_connection:name(Connection))}.
+  Server = whereis(apns_connection:name(Connection)),
+  apns_connection:wait_apns_connection_up(Server).
 
 %% @doc Closes the connection with APNs service.
 -spec close_connection(apns_connection:name()) -> ok.

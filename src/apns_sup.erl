@@ -48,7 +48,7 @@ start_link() ->
 %%      parameter in order to create the connection with APNs.
 -spec create_connection(apns_connection:connection()) -> {ok, pid()}.
 create_connection(Connection) ->
-  supervisor:start_child(?MODULE, [Connection]).
+  supervisor:start_child(?MODULE, [Connection, self()]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -64,7 +64,7 @@ init([]) ->
 
   Children = [#{ id       => apns_connection
                , start    => {apns_connection, start_link, []}
-               , restart  => transient
+               , restart  => temporary
                , shutdown => 5000
                , type     => worker
                , modules  => [apns_connection]
