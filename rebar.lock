@@ -7,12 +7,12 @@
   {git,"https://github.com/ninenines/gun.git",
        {ref,"bc733a2ca5f7d07f997ad6edf184f775b23434aa"}},
   0},
- {<<"jiffy">>,{pkg,<<"jiffy">>,<<"0.14.11">>},0},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.1">>},0},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
-       {ref,"f4f297cc9c07bc057479f77437cf0cbcfd0e67eb"}},
+       {ref,"8a07098b31ebdf37bf2e72fdd4b25a0f0052c849"}},
   1}]}.
 [
 {pkg_hash,[
- {<<"jiffy">>, <<"919A87D491C5A6B5E3BBC27FAFEDC3A0761CA0B4C405394F121F582FD4E3F0E5">>}]}
+ {<<"jsx">>, <<"1453B4EB3615ACB3E2CD0A105D27E6761E2ED2E501AC0B390F5BBEC497669846">>}]}
 ].

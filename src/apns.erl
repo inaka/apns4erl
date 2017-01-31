@@ -81,7 +81,8 @@ close_connection(ConnectionName) ->
 %%      environment variables.
 -spec push_notification( apns_connection:name()
                        , device_id()
-                       , json()) -> response().
+                       , json()
+                       ) -> response().
 push_notification(ConnectionName, DeviceId, JSONMap) ->
   Headers = default_headers(),
   push_notification(ConnectionName, DeviceId, JSONMap, Headers).
@@ -90,13 +91,15 @@ push_notification(ConnectionName, DeviceId, JSONMap) ->
 -spec push_notification( apns_connection:name()
                        , device_id()
                        , json()
-                       , headers()) -> response().
+                       , headers()
+                       ) -> response().
 push_notification(ConnectionName, DeviceId, JSONMap, Headers) ->
-  Notification = jiffy:encode(JSONMap),
+  Notification = jsx:encode(JSONMap),
   apns_connection:push_notification( ConnectionName
                                    , DeviceId
                                    , Notification
-                                   , Headers).
+                                   , Headers
+                                   ).
 
 %% @doc Get the default headers from environment variables.
 -spec default_headers() -> apns:headers().
@@ -105,7 +108,8 @@ default_headers() ->
             , apns_expiration
             , apns_priority
             , apns_topic
-            , apns_collapse_id],
+            , apns_collapse_id
+            ],
 
   default_headers(Headers, #{}).
 

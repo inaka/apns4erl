@@ -112,7 +112,8 @@ push_notification(ConnectionName, DeviceId, Notification, Headers) ->
   gen_server:call(ConnectionName, { push_notification
                                   , DeviceId
                                   , Notification
-                                  , Headers}).
+                                  , Headers
+                                  }).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -240,8 +241,8 @@ wait_for_response(GunConn, StreamRef) ->
 -spec wait_for_data(pid(), reference(), list(), integer()) -> apns:response().
 wait_for_data(GunConn, StreamRef, Acc, Timeout) ->
   receive
-    {gun_data, GunConn, StreamRef, fin, Response} ->
-      {[DecodedResponse]} = jiffy:decode(Response),
+    {gun_data, GunConn, StreamRef, fin, [Response]} ->
+      DecodedResponse = jsx:decode(Response),
       [DecodedResponse | Acc]
   after
     Timeout -> timeout

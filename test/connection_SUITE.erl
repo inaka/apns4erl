@@ -116,12 +116,14 @@ push_notification(_Config) ->
                                        , Ref
                                        , nofin
                                        , 400
-                                       , [{<<"apns-id">>, <<"apnsid2">>}]}),
+                                       , [{<<"apns-id">>, <<"apnsid2">>}]
+                                       }),
       {ok, _} = timer:send_after(1500, { gun_data
                                        , GunConn
                                        , Ref
                                        , fin
-                                       , [<<"{\"reason\":\"BadTopic\"}">>]}),
+                                       , [<<"{\"reason\":\"BadTopic\"}">>]
+                                       }),
       Ref
     end),
 
@@ -155,7 +157,8 @@ push_notification_timeout(_Config) ->
                                     , Ref
                                     , nofin
                                     , 400
-                                    , [{<<"apns-id">>, <<"apnsid">>}]}),
+                                    , [{<<"apns-id">>, <<"apnsid">>}]
+                                    }),
       % don't send the second message in order to throw the timeout
       Ref
     end),
