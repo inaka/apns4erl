@@ -24,7 +24,27 @@
         , stop/0
         , connect/1
         , close_connection/1
+        , push_notification/3
+        , push_notification/4
+        , default_headers/0
         ]).
+
+-export_type([ json/0
+             , device_id/0
+             , response/0
+             ]).
+
+-type json()      :: #{binary() => binary() | json()}.
+-type device_id() :: string().
+-type response()  :: { integer()  % HTTP2 Code
+                     , [term()]   % Data from APNs server
+                     } | timeout.
+-type headers()   :: #{ apns_id          => binary()
+                      , apns_expiration  => binary()
+                      , apns_priority    => binary()
+                      , apns_topic       => binary()
+                      , apns_collapse_id => binary()
+                      }.
 
 %%%===================================================================
 %%% API
@@ -57,6 +77,59 @@ connect(Connection) ->
 close_connection(ConnectionName) ->
   apns_connection:close_connection(ConnectionName).
 
+%% @doc Push notification to APNs. It will use the headers provided on the
+%%      environment variables.
+-spec push_notification( apns_connection:name()
+                       , device_id()
+                       , json()) -> response().
+push_notification(ConnectionName, DeviceId, JSONMap) ->
+  Headers = default_headers(),
+  push_notification(ConnectionName, DeviceId, JSONMap, Headers).
+
+%% @doc Push notification to APNs.
+-spec push_notification( apns_connection:name()
+                       , device_id()
+                       , json()
+                       , headers()) -> response().
+push_notification(ConnectionName, DeviceId, JSONMap, Headers) ->
+  Notification = jiffy:encode(JSONMap),
+  apns_connection:push_notification( ConnectionName
+                                   , DeviceId
+                                   , Notification
+                                   , Headers).
+
+%% @doc Get the default headers from environment variables.
+-spec default_headers() -> apns:headers().
+default_headers() ->
+  Headers = [ apns_id
+            , apns_expiration
+            , apns_priority
+            , apns_topic
+            , apns_collapse_id],
+
+  default_headers(Headers, #{}).
+
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
+%% Build a headers() structure from environment variables.
+-spec default_headers(list(), headers()) -> headers().
+default_headers([], Headers) ->
+  Headers;
+default_headers([Key | Keys], Headers) ->
+  case application:get_env(apns, Key) of
+    {ok, undefined} ->
+      default_headers(Keys, Headers);
+    {ok, Value} ->
+      NewHeaders = Headers#{Key => to_binary(Value)},
+      default_headers(Keys, NewHeaders)
+  end.
+
+%% Convert to binary
+to_binary(Value) when is_integer(Value) ->
+  list_to_binary(integer_to_list(Value));
+to_binary(Value) when is_list(Value) ->
+  list_to_binary(Value);
+to_binary(Value) when is_binary(Value) ->
+  Value.
