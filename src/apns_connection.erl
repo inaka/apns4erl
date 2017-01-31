@@ -31,6 +31,7 @@
         , keyfile/1
         , gun_connection/1
         , close_connection/1
+        , push_notification/4
         ]).
 
 %% gen_server callbacks
@@ -47,11 +48,13 @@
              , port/0
              , path/0
              , connection/0
+             , notification/0
              ]).
 
 -type name()         :: atom().
 -type host()         :: string() | inet:ip_address().
 -type path()         :: string().
+-type notification() :: binary().
 -opaque connection() :: #{ name       := name()
                          , apple_host := host()
                          , apple_port := inet:port_number()
@@ -100,6 +103,18 @@ close_connection(ConnectionName) ->
 gun_connection(ConnectionName) ->
   gen_server:call(ConnectionName, gun_connection).
 
+%% @doc Pushes notification to APNs connection.
+-spec push_notification( name()
+                       , apns:device_id()
+                       , notification()
+                       , apns:headers()) -> apns:response().
+push_notification(ConnectionName, DeviceId, Notification, Headers) ->
+  gen_server:call(ConnectionName, { push_notification
+                                  , DeviceId
+                                  , Notification
+                                  , Headers
+                                  }).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -119,6 +134,15 @@ init(Connection) ->
                  ) -> {reply, ok, State}.
 handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
   {reply, GunConn, State};
+handle_call( {push_notification, DeviceId, Notification, HeadersMap}
+           , _From
+           , State) ->
+  #{gun_connection := GunConn} = State,
+  Headers = get_headers(HeadersMap),
+  Path = get_device_path(DeviceId),
+  StreamRef = gun:post(GunConn, Path, Headers, Notification),
+  Response = wait_for_response(GunConn, StreamRef),
+  {reply, Response, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -198,3 +222,48 @@ open_gun_connection(Connection) ->
                                       }),
   GunMonitor = monitor(process, GunConnectionPid),
   {GunMonitor, GunConnectionPid}.
+
+-spec wait_for_response(pid(), reference()) -> apns:response().
+wait_for_response(GunConn, StreamRef) ->
+  {ok, Timeout} = application:get_env(apns, timeout),
+  receive
+    {gun_response, GunConn, StreamRef, nofin, Code, Response} ->
+      case wait_for_data(GunConn, StreamRef, Response, Timeout) of
+        timeout -> timeout;
+        Data    -> {Code, Data}
+      end;
+    {gun_response, GunConn, StreamRef, fin, Code, Response} ->
+      {Code, Response}
+  after
+    Timeout -> timeout
+  end.
+
+-spec wait_for_data(pid(), reference(), list(), integer()) -> apns:response().
+wait_for_data(GunConn, StreamRef, Acc, Timeout) ->
+  receive
+    {gun_data, GunConn, StreamRef, fin, [Response]} ->
+      DecodedResponse = jsx:decode(Response),
+      [DecodedResponse | Acc]
+  after
+    Timeout -> timeout
+  end.
+
+-spec get_headers(apns:headers()) -> list().
+get_headers(Headers) ->
+  List = [ {<<"apns-id">>, apns_id}
+         , {<<"apns-expiration">>, apns_expiration}
+         , {<<"apns-priority">>, apns_priority}
+         , {<<"apns-topic">>, apns_topic}
+         , {<<"apns-collapse_id">>, apns_collapse_id}
+         ],
+  F = fun({ActualHeader, Key}) ->
+    case (catch maps:get(Key, Headers)) of
+      {'EXIT', {{badkey, Key}, _}} -> [];
+      Value -> [{ActualHeader, Value}]
+    end
+  end,
+  lists:flatmap(F, List).
+
+-spec get_device_path(apns:device_id()) -> string().
+get_device_path(DeviceId) ->
+  "/3/device/" ++ DeviceId.
