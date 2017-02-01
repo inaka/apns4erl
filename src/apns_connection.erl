@@ -66,6 +66,7 @@
 -type state()        :: #{ connection     := connection()
                          , gun_connection := pid()
                          , gun_monitor    := reference()
+                         , client         := pid()
                          }.
 
 %%%===================================================================
@@ -77,7 +78,7 @@
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
 start_link(Connection, Client) ->
   Name = name(Connection),
-  gen_server:start_link({local, Name}, ?MODULE, [Connection, Client], []).
+  gen_server:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
 
 %% @doc Builds a connection() map from the environment variables.
 -spec default_connection(name()) -> connection().
@@ -120,16 +121,15 @@ push_notification(ConnectionName, DeviceId, Notification, Headers) ->
 %%% gen_server callbacks
 %%%===================================================================
 
--spec init(list()) -> {ok, State :: state()}.
-init([Connection, Client]) ->
+-spec init({connection(), pid()}) -> {ok, State :: state(), timeout()}.
+init({Connection, Client}) ->
   {GunMonitor, GunConnectionPid} = open_gun_connection(Connection),
-  % wait until the connection is established
-  self() ! {wait_gun_up, Client},
 
   {ok, #{ connection     => Connection
         , gun_connection => GunConnectionPid
         , gun_monitor    => GunMonitor
-        }}.
+        , client         => Client
+        }, 0}.
 
 -spec handle_call( Request :: term(), From :: {pid(), term()}, State) ->
   {reply, ok, State}.
@@ -172,7 +172,7 @@ handle_info( {'DOWN', GunMonitor, process, GunConnPid, _}
               } = State) ->
   {GunMonitor2, GunConnPid2} = open_gun_connection(Connection),
   {noreply, State#{gun_connection => GunConnPid2, gun_monitor => GunMonitor2}};
-handle_info({wait_gun_up, Client}, #{gun_connection := GunConn} = State) ->
+handle_info(timeout, #{gun_connection := GunConn, client := Client} = State) ->
   {ok, Timeout} = application:get_env(apns, timeout),
   case gun:await_up(GunConn, Timeout) of
     {ok, http2} ->
