@@ -8,6 +8,7 @@
 
 -export([ default_connection/1
         , connect/1
+        , connect_timeout/1
         , gun_connection_crashes/1
         , push_notification/1
         , push_notification_timeout/1
@@ -23,6 +24,7 @@
 -spec all() -> [atom()].
 all() ->  [ default_connection
           , connect
+          , connect_timeout
           , gun_connection_crashes
           , push_notification
           , push_notification_timeout
@@ -60,19 +62,32 @@ default_connection(_Config) ->
 
 -spec connect(config()) -> ok.
 connect(_Config) ->
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection,
   {ok, ServerPid}  = apns:connect(ConnectionName),
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
   ok = apns:close_connection(ConnectionName),
   ktn_task:wait_for(fun() -> whereis(ConnectionName) end, undefined),
+  [_] = meck:unload(),
+  ok.
+
+-spec connect_timeout(config()) -> ok.
+connect_timeout(_Config) ->
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({error, timeout}),
+  ConnectionName = my_connection,
+  {error, timeout}  = apns:connect(ConnectionName),
+  ok = apns:close_connection(ConnectionName),
+  ktn_task:wait_for(fun() -> whereis(ConnectionName) end, undefined),
+  [_] = meck:unload(),
   ok.
 
 -spec gun_connection_crashes(config()) -> ok.
 gun_connection_crashes(_Config) ->
-  ok = meck:expect(gun, open, fun(_, _, _) ->
-      {ok, spawn(fun crash/0)}
-    end),
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection2,
   {ok, _ServerPid}  = apns:connect(ConnectionName),
   GunPid = apns_connection:gun_connection(ConnectionName),
@@ -89,12 +104,8 @@ gun_connection_crashes(_Config) ->
 
 -spec push_notification(config()) -> ok.
 push_notification(_Config) ->
-  ok = meck:expect(gun, post, fun(GunConn, _, _, _) ->
-      Ref = make_ref(),
-      {ok, _} =
-        timer:send_after(1000, {gun_response, GunConn, Ref, fin, 200, []}),
-      Ref
-    end),
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection,
   {ok, _ApnsPid} = apns:connect(ConnectionName),
   Headers = #{ apns_id          => <<"apnsid">>
@@ -102,33 +113,26 @@ push_notification(_Config) ->
              , apns_priority    => <<"10">>
              , apns_topic       => <<"net.inaka.myapp">>
              },
-  Notification = #{<<"aps">> => #{<<"alert">> => <<"yo have a message">>}},
+  Notification = #{<<"aps">> => #{<<"alert">> => <<"you have a message">>}},
   DeviceId = "device_id",
-  {200, []} =
+  ok = mock_gun_post(),
+  ResponseCode = 200,
+  ResponseHeaders = [{<<"apns-id">>, <<"apnsid">>}],
+  ok = mock_gun_await({response, fin, ResponseCode, ResponseHeaders}),
+  {ResponseCode, ResponseHeaders, no_body} =
     apns:push_notification(ConnectionName, DeviceId, Notification, Headers),
-  [_] = meck:unload(),
 
   %% Now mock an error from APNs
-  ok = meck:expect(gun, post, fun(GunConn, _, _, _) ->
-      Ref = make_ref(),
-      {ok, _} = timer:send_after(1000, { gun_response
-                                       , GunConn
-                                       , Ref
-                                       , nofin
-                                       , 400
-                                       , [{<<"apns-id">>, <<"apnsid2">>}]
-                                       }),
-      {ok, _} = timer:send_after(1500, { gun_data
-                                       , GunConn
-                                       , Ref
-                                       , fin
-                                       , [<<"{\"reason\":\"BadTopic\"}">>]
-                                       }),
-      Ref
-    end),
+  [_] = meck:unload(),
+  ok = mock_gun_post(),
+  ErrorCode = 400,
+  ErrorHeaders = [{<<"apns-id">>, <<"apnsid2">>}],
+  ErrorBody = <<"{\"reason\":\"BadTopic\"}">>,
+  ok = mock_gun_await({response, nofin, ErrorCode, ErrorHeaders}),
+  ok = mock_gun_await_body(ErrorBody),
 
-  {400, _} =
-    apns:push_notification(ConnectionName, DeviceId, Notification, Headers),
+  {ErrorCode, ErrorHeaders, _DecodedErrorBody} =
+    apns:push_notification(ConnectionName, DeviceId, Notification),
   ok = apns:close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
@@ -137,31 +141,15 @@ push_notification(_Config) ->
 push_notification_timeout(_Config) ->
   %% Change the timeout variable
   {ok, OriginalTimeout} = application:get_env(apns, timeout),
-  ok = application:set_env(apns, timeout, 500),
+  ok = application:set_env(apns, timeout, 0),
 
-  ok = meck:expect(gun, post, fun(_, _, _, _) ->
-      make_ref()
-    end),
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
+  ok = mock_gun_post(),
   ConnectionName = my_connection,
   {ok, _ApnsPid} = apns:connect(ConnectionName),
   Notification = #{<<"aps">> => #{<<"alert">> => <<"another message">>}},
   DeviceId = "device_id",
-  timeout = apns:push_notification(ConnectionName, DeviceId, Notification),
-  [_] = meck:unload(),
-
-  % code coverage
-  ok = meck:expect(gun, post, fun(GunConn, _, _, _) ->
-      Ref = make_ref(),
-      {ok, _} = timer:send_after(1, { gun_response
-                                    , GunConn
-                                    , Ref
-                                    , nofin
-                                    , 400
-                                    , [{<<"apns-id">>, <<"apnsid">>}]
-                                    }),
-      % don't send the second message in order to throw the timeout
-      Ref
-    end),
   timeout = apns:push_notification(ConnectionName, DeviceId, Notification),
   [_] = meck:unload(),
 
@@ -209,9 +197,42 @@ default_headers(_Config) ->
 %% Internal Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec crash() -> ok.
-crash() ->
+-spec test_function() -> ok.
+test_function() ->
   receive
-    crash -> exit(crashed);
-    _     -> ok
+    normal -> ok;
+    crash  -> exit(crashed);
+    _      -> test_function()
   end.
+
+-spec mock_gun_open() -> ok.
+mock_gun_open() ->
+  meck:expect(gun, open, fun(_, _, _) ->
+    % Return a Pid but nothing special with it
+    {ok, spawn(fun test_function/0)}
+  end).
+
+
+-spec mock_gun_post() -> ok.
+mock_gun_post() ->
+  meck:expect(gun, post, fun(_, _, _, _) ->
+    make_ref()
+  end).
+
+-spec mock_gun_await(term()) -> ok.
+mock_gun_await(Result) ->
+  meck:expect(gun, await, fun(_, _, _) ->
+    Result
+  end).
+
+-spec mock_gun_await_body(term()) -> ok.
+mock_gun_await_body(Body) ->
+  meck:expect(gun, await_body, fun(_, _, _) ->
+    {ok, Body}
+  end).
+
+-spec mock_gun_await_up(term()) -> ok.
+mock_gun_await_up(Result) ->
+  meck:expect(gun, await_up, fun(_, _) ->
+    Result
+  end).

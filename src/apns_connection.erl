@@ -22,7 +22,7 @@
 -behaviour(gen_server).
 
 %% API
--export([ start_link/1
+-export([ start_link/2
         , default_connection/1
         , name/1
         , host/1
@@ -32,6 +32,7 @@
         , gun_connection/1
         , close_connection/1
         , push_notification/4
+        , wait_apns_connection_up/1
         ]).
 
 %% gen_server callbacks
@@ -65,6 +66,7 @@
 -type state()        :: #{ connection     := connection()
                          , gun_connection := pid()
                          , gun_monitor    := reference()
+                         , client         := pid()
                          }.
 
 %%%===================================================================
@@ -72,11 +74,11 @@
 %%%===================================================================
 
 %% @doc starts the gen_server
--spec start_link(connection()) ->
+-spec start_link(connection(), pid()) ->
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
-start_link(Connection) ->
+start_link(Connection, Client) ->
   Name = name(Connection),
-  gen_server:start_link({local, Name}, ?MODULE, Connection, []).
+  gen_server:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
 
 %% @doc Builds a connection() map from the environment variables.
 -spec default_connection(name()) -> connection().
@@ -119,29 +121,37 @@ push_notification(ConnectionName, DeviceId, Notification, Headers) ->
 %%% gen_server callbacks
 %%%===================================================================
 
--spec init(connection()) -> {ok, State :: state()}.
-init(Connection) ->
+-spec init({connection(), pid()}) -> {ok, State :: state(), timeout()}.
+init({Connection, Client}) ->
   {GunMonitor, GunConnectionPid} = open_gun_connection(Connection),
+
   {ok, #{ connection     => Connection
         , gun_connection => GunConnectionPid
         , gun_monitor    => GunMonitor
-        }}.
+        , client         => Client
+        }, 0}.
 
--spec handle_call( Request :: term()
-                 , From    :: {pid()
-                 , Tag     :: term()}
-                 , State
-                 ) -> {reply, ok, State}.
+-spec handle_call( Request :: term(), From :: {pid(), term()}, State) ->
+  {reply, ok, State}.
 handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
   {reply, GunConn, State};
 handle_call( {push_notification, DeviceId, Notification, HeadersMap}
            , _From
            , State) ->
   #{gun_connection := GunConn} = State,
+  {ok, Timeout} = application:get_env(apns, timeout),
   Headers = get_headers(HeadersMap),
   Path = get_device_path(DeviceId),
   StreamRef = gun:post(GunConn, Path, Headers, Notification),
-  Response = wait_for_response(GunConn, StreamRef),
+  Response = case gun:await(GunConn, StreamRef, Timeout) of
+    {response, fin, Status, ResponseHeaders} ->
+      {Status, ResponseHeaders, no_body};
+    {response, nofin, Status, ResponseHeaders} ->
+      {ok, Body} = gun:await_body(GunConn, StreamRef, Timeout),
+      DecodedBody = jsx:decode(Body),
+      {Status, ResponseHeaders, DecodedBody};
+    {error, timeout} -> timeout
+  end,
   {reply, Response, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -162,6 +172,16 @@ handle_info( {'DOWN', GunMonitor, process, GunConnPid, _}
               } = State) ->
   {GunMonitor2, GunConnPid2} = open_gun_connection(Connection),
   {noreply, State#{gun_connection => GunConnPid2, gun_monitor => GunMonitor2}};
+handle_info(timeout, #{gun_connection := GunConn, client := Client} = State) ->
+  {ok, Timeout} = application:get_env(apns, timeout),
+  case gun:await_up(GunConn, Timeout) of
+    {ok, http2} ->
+      Client ! {connection_up, self()},
+      {noreply, State};
+    {error, timeout} ->
+      Client ! {timeout, self()},
+      {stop, timeout, State}
+  end;
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -223,31 +243,6 @@ open_gun_connection(Connection) ->
   GunMonitor = monitor(process, GunConnectionPid),
   {GunMonitor, GunConnectionPid}.
 
--spec wait_for_response(pid(), reference()) -> apns:response().
-wait_for_response(GunConn, StreamRef) ->
-  {ok, Timeout} = application:get_env(apns, timeout),
-  receive
-    {gun_response, GunConn, StreamRef, nofin, Code, Response} ->
-      case wait_for_data(GunConn, StreamRef, Response, Timeout) of
-        timeout -> timeout;
-        Data    -> {Code, Data}
-      end;
-    {gun_response, GunConn, StreamRef, fin, Code, Response} ->
-      {Code, Response}
-  after
-    Timeout -> timeout
-  end.
-
--spec wait_for_data(pid(), reference(), list(), integer()) -> apns:response().
-wait_for_data(GunConn, StreamRef, Acc, Timeout) ->
-  receive
-    {gun_data, GunConn, StreamRef, fin, [Response]} ->
-      DecodedResponse = jsx:decode(Response),
-      [DecodedResponse | Acc]
-  after
-    Timeout -> timeout
-  end.
-
 -spec get_headers(apns:headers()) -> list().
 get_headers(Headers) ->
   List = [ {<<"apns-id">>, apns_id}
@@ -267,3 +262,10 @@ get_headers(Headers) ->
 -spec get_device_path(apns:device_id()) -> string().
 get_device_path(DeviceId) ->
   "/3/device/" ++ DeviceId.
+
+-spec wait_apns_connection_up(pid()) -> {ok, pid()} | {error, timeout}.
+wait_apns_connection_up(Server) ->
+  receive
+    {connection_up, Server} -> {ok, Server};
+    {timeout, Server}       -> {error, timeout}
+  end.
