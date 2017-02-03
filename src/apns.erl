@@ -119,11 +119,11 @@ push_notification_token(ConnectionName, Token, DeviceId, JSONMap) ->
 
 %% @doc Push notification to authentication token APNs Connection.
 -spec push_notification_token( apns_connection:name()
-                       , token()
-                       , device_id()
-                       , json()
-                       , headers()
-                       ) -> response().
+                             , token()
+                             , device_id()
+                             , json()
+                             , headers()
+                             ) -> response().
 push_notification_token(ConnectionName, Token, DeviceId, JSONMap, Headers) ->
   Notification = jsx:encode(JSONMap),
   apns_connection:push_notification( ConnectionName
