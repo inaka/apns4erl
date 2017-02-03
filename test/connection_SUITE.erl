@@ -11,6 +11,7 @@
         , connect_timeout/1
         , gun_connection_crashes/1
         , push_notification/1
+        , push_notification_token/1
         , push_notification_timeout/1
         , default_headers/1
         ]).
@@ -27,6 +28,7 @@ all() ->  [ default_connection
           , connect_timeout
           , gun_connection_crashes
           , push_notification
+          , push_notification_token
           , push_notification_timeout
           , default_headers
           ].
@@ -52,12 +54,23 @@ default_connection(_Config) ->
   {ok, Port} = application:get_env(apns, apple_port),
   {ok, Certfile} = application:get_env(apns, certfile),
   {ok, Keyfile} = application:get_env(apns, keyfile),
-  DefaultConnection = apns_connection:default_connection(ConnectionName),
+
+  % cert type connection
+  DefaultConnection = apns_connection:default_connection(cert, ConnectionName),
   ConnectionName = apns_connection:name(DefaultConnection),
   Host = apns_connection:host(DefaultConnection),
   Port = apns_connection:port(DefaultConnection),
   Certfile = apns_connection:certfile(DefaultConnection),
   Keyfile = apns_connection:keyfile(DefaultConnection),
+  cert = apns_connection:type(DefaultConnection),
+
+  % token type connection
+  DefaultConnection2 =
+    apns_connection:default_connection(token, ConnectionName),
+  ConnectionName = apns_connection:name(DefaultConnection2),
+  Host = apns_connection:host(DefaultConnection2),
+  Port = apns_connection:port(DefaultConnection2),
+  token = apns_connection:type(DefaultConnection2),
   ok.
 
 -spec connect(config()) -> ok.
@@ -65,7 +78,7 @@ connect(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection,
-  {ok, ServerPid}  = apns:connect(ConnectionName),
+  {ok, ServerPid}  = apns:connect(cert, ConnectionName),
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
   ok = apns:close_connection(ConnectionName),
@@ -78,7 +91,7 @@ connect_timeout(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({error, timeout}),
   ConnectionName = my_connection,
-  {error, timeout}  = apns:connect(ConnectionName),
+  {error, timeout}  = apns:connect(token, ConnectionName),
   ok = apns:close_connection(ConnectionName),
   ktn_task:wait_for(fun() -> whereis(ConnectionName) end, undefined),
   [_] = meck:unload(),
@@ -89,7 +102,7 @@ gun_connection_crashes(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection2,
-  {ok, _ServerPid}  = apns:connect(ConnectionName),
+  {ok, _ServerPid}  = apns:connect(cert, ConnectionName),
   GunPid = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid),
   GunPid ! crash,
@@ -107,14 +120,14 @@ push_notification(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection,
-  {ok, _ApnsPid} = apns:connect(ConnectionName),
+  {ok, _ApnsPid} = apns:connect(cert, ConnectionName),
   Headers = #{ apns_id          => <<"apnsid">>
              , apns_expiration  => <<"0">>
              , apns_priority    => <<"10">>
              , apns_topic       => <<"net.inaka.myapp">>
              },
   Notification = #{<<"aps">> => #{<<"alert">> => <<"you have a message">>}},
-  DeviceId = "device_id",
+  DeviceId = <<"device_id">>,
   ok = mock_gun_post(),
   ResponseCode = 200,
   ResponseHeaders = [{<<"apns-id">>, <<"apnsid">>}],
@@ -137,6 +150,41 @@ push_notification(_Config) ->
   [_] = meck:unload(),
   ok.
 
+-spec push_notification_token(config()) -> ok.
+push_notification_token(_Config) ->
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
+  ConnectionName = my_token_connection,
+  {ok, _ApnsPid} = apns:connect(token, ConnectionName),
+  Headers = #{ apns_id          => <<"apnsid2">>
+             , apns_expiration  => <<"0">>
+             , apns_priority    => <<"10">>
+             , apns_topic       => <<"net.inaka.myapp">>
+             },
+  Notification = #{<<"aps">> => #{<<"alert">> => <<"more messages">>}},
+  DeviceId = <<"device_id2">>,
+  Token = apns:generate_token(<<"TeamId">>, <<"KeyId">>),
+  ok = mock_gun_post(),
+  ResponseCode = 200,
+  ResponseHeaders = [{<<"apns-id">>, <<"apnsid2">>}],
+  ok = mock_gun_await({response, fin, ResponseCode, ResponseHeaders}),
+  {ResponseCode, ResponseHeaders, no_body} =
+    apns:push_notification_token( ConnectionName
+                                , Token
+                                , DeviceId
+                                , Notification
+                                , Headers
+                                ),
+  {ResponseCode, ResponseHeaders, no_body} =
+    apns:push_notification_token( ConnectionName
+                                , Token
+                                , DeviceId
+                                , Notification
+                                ),
+  ok = apns:close_connection(ConnectionName),
+  [_] = meck:unload(),
+  ok.
+
 -spec push_notification_timeout(config()) -> ok.
 push_notification_timeout(_Config) ->
   %% Change the timeout variable
@@ -147,9 +195,9 @@ push_notification_timeout(_Config) ->
   ok = mock_gun_await_up({ok, http2}),
   ok = mock_gun_post(),
   ConnectionName = my_connection,
-  {ok, _ApnsPid} = apns:connect(ConnectionName),
+  {ok, _ApnsPid} = apns:connect(cert, ConnectionName),
   Notification = #{<<"aps">> => #{<<"alert">> => <<"another message">>}},
-  DeviceId = "device_id",
+  DeviceId = <<"device_id">>,
   timeout = apns:push_notification(ConnectionName, DeviceId, Notification),
   [_] = meck:unload(),
 
