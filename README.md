@@ -6,7 +6,7 @@ Apns4erl v2
 
 This lib is intended to allow you to write an APNs provider for [Apple Push Notificaion services (APNs)](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/APNSOverview.html) over HTTP2 in Erlang.
 
-Copyright (c) 2017 Inaka Labs SRL <support@inaka.net>, released under the MIT license
+Copyright (c) 2017 Erlang Solutions Ltd. <support@inaka.net>, released under the Apache 2 license
 
 You can find the v1 [here](https://github.com/inaka/apns4erl/releases/tag/1.0.6-final)?
 
@@ -71,7 +71,7 @@ ok
 
 ## Create connections
 
-After fill the `config` file and run `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the function `apns:connect/2` where the first argument is the type and the second one is the connection's name.
+After filling the `config` file and running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the function `apns:connect/2` where the first argument is the type and the second one is the connection's name.
 
 ```erlang
 2> apns:connect(cert, my_first_connection).
@@ -81,13 +81,13 @@ After fill the `config` file and run `apns4erl` app we can start creating connec
 ```
 Note `cert` and `token` define the type we want.
 
-Although `Apns4erl` is supervising the connections `apns:connect/2` returns the connection `pid` just in case you wanted monitor it.
+Although `Apns4erl` is supervising the connections `apns:connect/2` returns the connection `pid` just in case you want to monitor it.
 
 ## Push Notifications over `Provider Certificate` connections
 
 In order to send Notifications over `Provider Certificate` connection we will use `apns:push_notification/3,4`.
 
-We would need the connection, a notification, the device ID and some http2 headers. The connection is the `atom` we used when run `apns:connect/2` for setting a name, the device ID is provided by Apple, the notification is a `map` with the data we want to send, that map will be encoded to json later and the http2 headers can be explicitly sent as a parameter using `apns:push_notification/4` or can be defined at the `config` file, in that case we would use `apns:push_notification/3`.
+We will need the connection, a notification, the device ID and some http2 headers. The connection is the `atom` we used when we executed `apns:connect/2` for setting a name, the device ID is provided by Apple, the notification is a `map` with the data we want to send, that map will be encoded to json later and the http2 headers can be explicitly sent as a parameter using `apns:push_notification/4` or can be defined at the `config` file, in that case we would use `apns:push_notification/3`.
 
 This is the `headers` format:
 
@@ -131,13 +131,13 @@ And that's all.
 
 ## Push Notifications over `Provider Authentication Tokens` connections
 
-This is the other way APNs allows to send notifications. In this case we don't need a certificate but we will need a `p8` file with the private key we will use to sign the token. Lets suppose Apple provides us the file `APNsAuthKey_KEYID12345.p8`. We have to fill the `config` file key `token_keyfile` with the path to that file.
+This is the other way APNs allows us to send notifications. In this case we don't need a certificate but we will need a `p8` file with the private key we will use to sign the token. Lets assume we've got the file  `APNsAuthKey_KEYID12345.p8` from Apple. We then have to fill the `config` file key `token_keyfile` with the path to that file.
 
 We will need a `kid` value, this is the key identifier. In our case is the last 10 chars of the file name (`KEYID123456`). We will need also the `iss` value, this is the Team Id, that can be checked on your Apple's Developer account, in our case it will be `THEATEAM`. And that's it.
 
 You can find more info [here](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html)
 
-In order to push notification we will use `apns:push_notification_token/4,5`. we will need the same attributes we used sending a notification over `Provider Certificate` connections plus a signed `token`. This token has a 1 hour life, so that means we can generate one token and use it many times till it expires. Lets try.
+In order to push a notification we will use `apns:push_notification_token/4,5`. We will need the same attributes we used sending a notification over `Provider Certificate` connections plus a signed `token`. This token has a 1 hour life, so that means we can generate one token and use it many times till it expires. Lets try.
 
 Create the token:
 
@@ -147,9 +147,6 @@ Create the token:
 7> KeyID = <<"KEYID123456">>.
 <<"KEYID123456">>
 8> Token = apns:generate_token(TeamId, KeyID).
-
-=INFO REPORT==== 3-Feb-2017::13:15:34 ===
-MEQCIBO8fTUL7e3myXoOLhyQmVmA3/p/bg+4y8vgj8TC57KMAiA6OzpolngsgjoGpZkByCcMjMz8QKr9yY598rCTKGN8sA==
 <<"eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IktFWUlEMTIzNDU2In0.eyJpc3MiOiJUSEVBVEVBTSIsImlhdCI6MTQ4NjE0OTMzNH0.MEQC"...>>
 ```
 
@@ -174,3 +171,9 @@ We can use this token for an entire hour, after that we will receive something l
  [{<<"apns-id">>,<<"03FF9497-8A6B-FFD6-B32B-160ACEDE35F0">>}],
  [{<<"reason">>,<<"ExpiredProviderToken">>}]}
 ```
+
+## Close connections
+
+Apple recommends us to keep our connections open and avoiding open and close very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.
+
+But when to close a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name. After using it the name will be available for new connections again.
