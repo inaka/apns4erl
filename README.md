@@ -174,6 +174,6 @@ We can use this token for an entire hour, after that we will receive something l
 
 ## Close connections
 
-Apple recommends us to keep our connections open and avoiding open and close very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.
+Apple recommends us to keep our connections open and avoid opening and closing very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.
 
-But when to close a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name. After using it the name will be available for new connections again.
+But when closing a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name. After using it the name will be available for new connections again.
