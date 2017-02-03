@@ -6,7 +6,8 @@
   {applications, [
     kernel,
     stdlib,
-    gun
+    gun,
+    base64url
   ]},
   {modules, []},
   {mod, {apns_app, []}},
