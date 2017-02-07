@@ -40,6 +40,9 @@ get_feedback(_Config) ->
   ok = meck:expect(ssl, connect, fun(_, _, _, _) ->
     {ok, my_socket}
   end),
+  ok = meck:expect(ssl, close, fun(my_socket) ->
+    ok
+  end),
   Timestamp = 1486407930,
   Device = 16#A0DC63FB059CB9C13B03E5C974AF3DD33D67FED4147DA8C5ADA0626439E18935,
   DeviceEncoded = binary:encode_unsigned(Device),
@@ -66,6 +69,9 @@ get_feedback(_Config) ->
 get_feedback_timeout(_Config) ->
   ok = meck:expect(ssl, connect, fun(_, _, _, _) ->
     {ok, my_socket1}
+  end),
+  ok = meck:expect(ssl, close, fun(my_socket1) ->
+    ok
   end),
   %% Change the timeout variable
   {ok, OriginalTimeout} = application:get_env(apns, timeout),

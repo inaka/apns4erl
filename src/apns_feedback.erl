@@ -36,7 +36,9 @@
 get_feedback(Timeout) ->
   case open_feedback(Timeout) of
     {ok, Socket} ->
-      wait_for_feedback(Socket, Timeout);
+      Result = wait_for_feedback(Socket, Timeout),
+      ssl:close(Socket),
+      Result;
     {error, Reason} ->
       {error, Reason}
   end.
