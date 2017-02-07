@@ -50,13 +50,14 @@ epoch() ->
 %% Converts binary to hexadecimal string().
 -spec bin_to_hexstr(binary()) -> string().
 bin_to_hexstr(Binary) ->
-    L = size(Binary),
-    Bits = L * 8,
-    <<X:Bits/big-unsigned-integer>> = Binary,
-    F = lists:flatten(io_lib:format("~~~B.16.0B", [L * 2])),
-    lists:flatten(io_lib:format(F, [X])).
+  L = size(Binary),
+  Bits = L * 8,
+  <<X:Bits/big-unsigned-integer>> = Binary,
+  F = lists:flatten(io_lib:format("~~~B.16.0B", [L * 2])),
+  lists:flatten(io_lib:format(F, [X])).
 
 %% Converts from seconds to datetime.
 -spec seconds_to_timestamp(pos_integer()) -> calendar:datetime().
 seconds_to_timestamp(Secs) ->
-  calendar:gregorian_seconds_to_datetime(Secs + 62167219200).
+  Epoch = 62167219200,
+  calendar:gregorian_seconds_to_datetime(Secs + Epoch).

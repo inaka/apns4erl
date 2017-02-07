@@ -180,7 +180,7 @@ But when closing a connection makes sense `apns4erl` gives us the function `apns
 
 ## Feedback
 
-`apns4erl` also allows us to get feedback for APNs service. It does it thru the [binary API](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/BinaryProviderAPI.html).
+`apns4erl` also allows us to get feedback from APNs service. It does it thru the [binary API](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/BinaryProviderAPI.html).
 
 In order to get feedback we would need a `Provider Certificate` and have it set at `config` file as we do for `push notifications`. Then we will call `apns:get_feedback/0`. The response will be a list of `feedback()`
 
