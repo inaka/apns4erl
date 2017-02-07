@@ -30,6 +30,7 @@
         , push_notification_token/5
         , default_headers/0
         , generate_token/2
+        , get_feedback/0
         ]).
 
 -export_type([ json/0
@@ -53,6 +54,7 @@
                       , apns_collapse_id => binary()
                       , apns_auth_token  => binary()
                       }.
+-type feedback()  :: apns_feedback:feedback().
 
 %%%===================================================================
 %%% API
@@ -141,12 +143,12 @@ generate_token(TeamId, KeyId) ->
                       , {kid, KeyId}
                       ]),
   Payload = jsx:encode([ {iss, TeamId}
-                       , {iat, epoch()}
+                       , {iat, apns_utils:epoch()}
                        ]),
   HeaderEncoded = base64url:encode(Header),
   PayloadEncoded = base64url:encode(Payload),
   DataEncoded = <<HeaderEncoded/binary, $., PayloadEncoded/binary>>,
-  Signature = sign(DataEncoded),
+  Signature = apns_utils:sign(DataEncoded),
   <<DataEncoded/binary, $., Signature/binary>>.
 
 %% @doc Get the default headers from environment variables.
@@ -160,6 +162,12 @@ default_headers() ->
             ],
 
   default_headers(Headers, #{}).
+
+%% Requests for feedback to APNs. This requires Provider Certificate.
+-spec get_feedback() -> [feedback()] | {error, term()} | timeout.
+get_feedback() ->
+  {ok, Timeout} = application:get_env(apns, timeout),
+  apns_feedback:get_feedback(Timeout).
 
 %%%===================================================================
 %%% Internal Functions
@@ -192,17 +200,3 @@ to_binary(Value) when is_list(Value) ->
   list_to_binary(Value);
 to_binary(Value) when is_binary(Value) ->
   Value.
-
--spec sign(binary()) -> binary().
-sign(Data) ->
-  {ok, KeyPath} = application:get_env(apns, token_keyfile),
-  Command = "printf '" ++
-            binary_to_list(Data) ++
-            "' | openssl dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
-  {0, Result} = ktn_os:command(Command),
-  list_to_binary(Result).
-
--spec epoch() -> integer().
-epoch() ->
-  {M, S, _} = os:timestamp(),
-  M * 1000000 + S.
