@@ -355,6 +355,6 @@ backoff(N, Ceiling) ->
     R when R > Ceiling ->
       Ceiling;
     NextN ->
-    NString = float_to_list(NextN, [{decimals, 0}]),
-    list_to_integer(NString)
+      NString = float_to_list(NextN, [{decimals, 0}]),
+      list_to_integer(NString)
   end.
