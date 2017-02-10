@@ -177,3 +177,14 @@ We can use this token for an entire hour, after that we will receive something l
 Apple recommends us to keep our connections open and avoid opening and closing very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.
 
 But when closing a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name. After using it the name will be available for new connections again.
+
+## Feedback
+
+`apns4erl` also allows us to get feedback from APNs service. It does it thru the [binary API](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/BinaryProviderAPI.html).
+
+In order to get feedback we would need a `Provider Certificate` and have it set at `config` file as we do for `push notifications`. Then we will call `apns:get_feedback/0`. The response will be a list of `feedback()`
+
+```erlang
+-type feedback() :: {calendar:datetime(), string()}.
+```
+Where the first element in the tuple is the date when the device uninstalled the app and the second element is the Device Id.
