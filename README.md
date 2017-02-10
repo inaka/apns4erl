@@ -176,6 +176,7 @@ We can use this token for an entire hour, after that we will receive something l
 
 If network goes down or something unexpected happens the `gun` connection with APNs will go down. In that case `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
 
+
 We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time adding the `backoff_ceiling` variable on the `config` file. By default it is set to 10 (seconds).
 
 ## Close connections
