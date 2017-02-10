@@ -17,7 +17,7 @@
  {<<"lager">>,{pkg,<<"lager">>,<<"3.0.2">>},2},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
-       {ref,"8a07098b31ebdf37bf2e72fdd4b25a0f0052c849"}},
+       {ref,"a004ad710eddd0c21aaccc30d5633a76b06164b5"}},
   1},
  {<<"zipper">>,{pkg,<<"zipper">>,<<"1.0.0">>},2}]}.
 [
