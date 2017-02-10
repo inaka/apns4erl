@@ -68,10 +68,11 @@
                          , type       := type()
                          }.
 
--type state()        :: #{ connection     := connection()
-                         , gun_connection := pid()
-                         , gun_monitor    := reference()
-                         , client         := pid()
+-type state()        :: #{ connection      := connection()
+                         , gun_connection  := pid()
+                         , client          := pid()
+                         , backoff         := non_neg_integer()
+                         , backoff_ceiling := non_neg_integer()
                          }.
 
 %%%===================================================================
@@ -146,18 +147,27 @@ push_notification(ConnectionName, Token, DeviceId, Notification, Headers) ->
                                   , Headers
                                   }).
 
+%% @doc Waits until receive the `connection_up` message
+-spec wait_apns_connection_up(pid()) -> {ok, pid()} | {error, timeout}.
+wait_apns_connection_up(Server) ->
+  receive
+    {connection_up, Server} -> {ok, Server};
+    {timeout, Server}       -> {error, timeout}
+  end.
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
 -spec init({connection(), pid()}) -> {ok, State :: state(), timeout()}.
 init({Connection, Client}) ->
-  {GunMonitor, GunConnectionPid} = open_gun_connection(Connection),
+  GunConnectionPid = open_gun_connection(Connection),
 
-  {ok, #{ connection     => Connection
-        , gun_connection => GunConnectionPid
-        , gun_monitor    => GunMonitor
-        , client         => Client
+  {ok, #{ connection      => Connection
+        , gun_connection  => GunConnectionPid
+        , client          => Client
+        , backoff         => 1
+        , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
         }, 0}.
 
 -spec handle_call( Request :: term(), From :: {pid(), term()}, State) ->
@@ -187,15 +197,37 @@ handle_cast(stop, State) ->
 handle_cast(_Request, State) ->
   {noreply, State}.
 
--spec handle_info(Info :: timeout() | term(), State) ->
-  {noreply, State}.
-handle_info( {'DOWN', GunMonitor, process, GunConnPid, _}
-           , #{ gun_connection := GunConnPid
-              , gun_monitor    := GunMonitor
-              , connection     := Connection
+-spec handle_info(Info :: timeout() | term(), State) -> {noreply, State}.
+handle_info( {gun_down, GunConn, http2, closed, _, _}
+           , #{ gun_connection  := GunConn
+              , client          := Client
+              , backoff         := Backoff
+              , backoff_ceiling := Ceiling
               } = State) ->
-  {GunMonitor2, GunConnPid2} = open_gun_connection(Connection),
-  {noreply, State#{gun_connection => GunConnPid2, gun_monitor => GunMonitor2}};
+  ok = gun:close(GunConn),
+  Client ! {reconnecting, self()},
+  Sleep = backoff(Backoff, Ceiling) * 1000, % seconds to wait before reconnect
+  {ok, _} = timer:send_after(Sleep, reconnect),
+  {noreply, State#{backoff => Backoff + 1}};
+handle_info(reconnect, State) ->
+  #{ connection      := Connection
+   , client          := Client
+   , backoff         := Backoff
+   , backoff_ceiling := Ceiling
+   } = State,
+  GunConn = open_gun_connection(Connection),
+  {ok, Timeout} = application:get_env(apns, timeout),
+  case gun:await_up(GunConn, Timeout) of
+    {ok, http2} ->
+      Client ! {connection_up, self()},
+      {noreply, State#{ gun_connection => GunConn
+                      , backoff        => 1}};
+    {error, timeout} ->
+      ok = gun:close(GunConn),
+      Sleep = backoff(Backoff, Ceiling) * 1000, % seconds to wait
+      {ok, _} = timer:send_after(Sleep, reconnect),
+      {noreply, State#{backoff => Backoff + 1}}
+  end;
 handle_info(timeout, #{gun_connection := GunConn, client := Client} = State) ->
   {ok, Timeout} = application:get_env(apns, timeout),
   case gun:await_up(GunConn, Timeout) of
@@ -254,9 +286,7 @@ type(#{type := Type}) ->
 %%% Internal Functions
 %%%===================================================================
 
--spec open_gun_connection(connection()) -> { GunMonitor       :: reference()
-                                           , GunConnectionPid :: pid()
-                                           }.
+-spec open_gun_connection(connection()) -> GunConnectionPid :: pid().
 open_gun_connection(Connection) ->
   Host = host(Connection),
   Port = port(Connection),
@@ -275,8 +305,7 @@ open_gun_connection(Connection) ->
                                    , #{ protocols => [http2]
                                       , transport_opts => TransportOpts
                                       }),
-  GunMonitor = monitor(process, GunConnectionPid),
-  {GunMonitor, GunConnectionPid}.
+  GunConnectionPid.
 
 -spec get_headers(apns:headers()) -> list().
 get_headers(Headers) ->
@@ -299,13 +328,6 @@ get_headers(Headers) ->
 get_device_path(DeviceId) ->
   <<"/3/device/", DeviceId/binary>>.
 
--spec wait_apns_connection_up(pid()) -> {ok, pid()} | {error, timeout}.
-wait_apns_connection_up(Server) ->
-  receive
-    {connection_up, Server} -> {ok, Server};
-    {timeout, Server}       -> {error, timeout}
-  end.
-
 -spec add_authorization_header(apns:headers(), apnd:token()) -> apns:headers().
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
@@ -325,4 +347,14 @@ push(GunConn, DeviceId, HeadersMap, Notification) ->
       DecodedBody = jsx:decode(Body),
       {Status, ResponseHeaders, DecodedBody};
     {error, timeout} -> timeout
+  end.
+
+-spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
+backoff(N, Ceiling) ->
+  case (math:pow(2, N) - 1) of
+    R when R > Ceiling ->
+      Ceiling;
+    NextN ->
+    NString = float_to_list(NextN, [{decimals, 0}]),
+    list_to_integer(NString)
   end.

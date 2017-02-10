@@ -102,11 +102,14 @@ gun_connection_crashes(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection2,
-  {ok, _ServerPid}  = apns:connect(cert, ConnectionName),
+  {ok, ServerPid}  = apns:connect(cert, ConnectionName),
   GunPid = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid),
-  GunPid ! crash,
+  GunPid ! {crash, ServerPid},
   ktn_task:wait_for(fun() -> is_process_alive(GunPid) end, false),
+  ktn_task:wait_for(fun() ->
+      apns_connection:gun_connection(ConnectionName) == GunPid
+    end, false),
   GunPid2 = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid2),
   true = (GunPid =/= GunPid2),
@@ -248,9 +251,9 @@ default_headers(_Config) ->
 -spec test_function() -> ok.
 test_function() ->
   receive
-    normal -> ok;
-    crash  -> exit(crashed);
-    _      -> test_function()
+    normal           -> ok;
+    {crash, Pid}     -> Pid ! {gun_down, self(), http2, closed, [], []};
+    _                -> test_function()
   end.
 
 -spec mock_gun_open() -> ok.
