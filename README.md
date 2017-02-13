@@ -22,7 +22,8 @@ If you find any **bugs** or have a **problem** while using Apns4erl, please [ope
 And you can check all of our open-source projects at [inaka.github.io](http://inaka.github.io)
 
 ## Requirements
-You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
+- You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
+- Erlang R19+
 
 ## How to use it?
 
