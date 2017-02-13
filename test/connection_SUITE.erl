@@ -125,6 +125,8 @@ gun_connection_lost_timeout(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection,
+  % when backoff is grater than ceiling
+  ok = application:set_env(apns, backoff_ceiling, 2),
   {ok, _ServerPid}  = apns:connect(cert, ConnectionName),
   GunPid = apns_connection:gun_connection(ConnectionName),
 
@@ -132,6 +134,7 @@ gun_connection_lost_timeout(_Config) ->
   ok = meck:expect(gun, close, fun(_) ->
     ok
   end),
+
   ConnectionName ! reconnect,
 
   ktn_task:wait_for(fun() ->
@@ -145,6 +148,7 @@ gun_connection_lost_timeout(_Config) ->
     end, false),
 
   ok = close_connection(ConnectionName),
+  ok = application:set_env(apns, backoff_ceiling, 10),
   [_] = meck:unload(),
   ok.
 
@@ -286,8 +290,6 @@ test_coverage(_Config) ->
   ok = gen_server:cast(ConnectionName, hello_cast),
   ConnectionName ! hello_info,
   {ok, #{}} = apns_connection:code_change(old_version, #{}, []),
-
-  10 = apns_connection:backoff(17, 10),
 
   ok = close_connection(ConnectionName),
   [_] = meck:unload(),

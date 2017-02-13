@@ -35,7 +35,6 @@
         , push_notification/4
         , push_notification/5
         , wait_apns_connection_up/1
-        , backoff/2 % exported for testing purposes only
         ]).
 
 %% gen_server callbacks
