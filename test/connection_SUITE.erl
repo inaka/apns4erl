@@ -9,11 +9,13 @@
 -export([ default_connection/1
         , connect/1
         , connect_timeout/1
-        , gun_connection_crashes/1
+        , gun_connection_lost/1
+        , gun_connection_lost_timeout/1
         , push_notification/1
         , push_notification_token/1
         , push_notification_timeout/1
         , default_headers/1
+        , test_coverage/1
         ]).
 
 -type config() :: [{atom(), term()}].
@@ -26,11 +28,13 @@
 all() ->  [ default_connection
           , connect
           , connect_timeout
-          , gun_connection_crashes
+          , gun_connection_lost
+          , gun_connection_lost_timeout
           , push_notification
           , push_notification_token
           , push_notification_timeout
           , default_headers
+          , test_coverage
           ].
 
 -spec init_per_suite(config()) -> config().
@@ -81,8 +85,7 @@ connect(_Config) ->
   {ok, ServerPid}  = apns:connect(cert, ConnectionName),
   true = is_process_alive(ServerPid),
   ServerPid = whereis(ConnectionName),
-  ok = apns:close_connection(ConnectionName),
-  ktn_task:wait_for(fun() -> whereis(ConnectionName) end, undefined),
+  ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
 
@@ -92,13 +95,12 @@ connect_timeout(_Config) ->
   ok = mock_gun_await_up({error, timeout}),
   ConnectionName = my_connection,
   {error, timeout}  = apns:connect(token, ConnectionName),
-  ok = apns:close_connection(ConnectionName),
-  ktn_task:wait_for(fun() -> whereis(ConnectionName) end, undefined),
+  ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
 
--spec gun_connection_crashes(config()) -> ok.
-gun_connection_crashes(_Config) ->
+-spec gun_connection_lost(config()) -> ok.
+gun_connection_lost(_Config) ->
   ok = mock_gun_open(),
   ok = mock_gun_await_up({ok, http2}),
   ConnectionName = my_connection2,
@@ -113,8 +115,36 @@ gun_connection_crashes(_Config) ->
   GunPid2 = apns_connection:gun_connection(ConnectionName),
   true = is_process_alive(GunPid2),
   true = (GunPid =/= GunPid2),
-  ok = apns:close_connection(ConnectionName),
+  ok = close_connection(ConnectionName),
   ktn_task:wait_for(fun() -> is_process_alive(GunPid2) end, false),
+  [_] = meck:unload(),
+  ok.
+
+-spec gun_connection_lost_timeout(config()) -> ok.
+gun_connection_lost_timeout(_Config) ->
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
+  ConnectionName = my_connection,
+  {ok, _ServerPid}  = apns:connect(cert, ConnectionName),
+  GunPid = apns_connection:gun_connection(ConnectionName),
+
+  ok = mock_gun_await_up({error, timeout}),
+  ok = meck:expect(gun, close, fun(_) ->
+    ok
+  end),
+  ConnectionName ! reconnect,
+
+  ktn_task:wait_for(fun() ->
+      apns_connection:gun_connection(ConnectionName) == GunPid
+    end, false),
+
+  GunPid2 = apns_connection:gun_connection(ConnectionName),
+
+  ktn_task:wait_for(fun() ->
+      apns_connection:gun_connection(ConnectionName) == GunPid2
+    end, false),
+
+  ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
 
@@ -149,7 +179,7 @@ push_notification(_Config) ->
 
   {ErrorCode, ErrorHeaders, _DecodedErrorBody} =
     apns:push_notification(ConnectionName, DeviceId, Notification),
-  ok = apns:close_connection(ConnectionName),
+  ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
 
@@ -184,7 +214,7 @@ push_notification_token(_Config) ->
                                 , DeviceId
                                 , Notification
                                 ),
-  ok = apns:close_connection(ConnectionName),
+  ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
 
@@ -202,6 +232,7 @@ push_notification_timeout(_Config) ->
   Notification = #{<<"aps">> => #{<<"alert">> => <<"another message">>}},
   DeviceId = <<"device_id">>,
   timeout = apns:push_notification(ConnectionName, DeviceId, Notification),
+  ok = close_connection(ConnectionName),
   [_] = meck:unload(),
 
   % turn back the original timeout
@@ -242,6 +273,24 @@ default_headers(_Config) ->
   ok = application:set_env(apns, apns_priority, OriginalApnsPriority),
   ok = application:set_env(apns, apns_topic, OriginalApnsTopic),
   ok = application:set_env(apns, apns_collapse_id, OriginalApnsCollapseId),
+  ok.
+
+-spec test_coverage(config()) -> ok.
+test_coverage(_Config) ->
+  ok = mock_gun_open(),
+  ok = mock_gun_await_up({ok, http2}),
+  ConnectionName = my_connection,
+  {ok, _ServerPid}  = apns:connect(cert, ConnectionName),
+
+  ok = gen_server:call(ConnectionName, hello_call),
+  ok = gen_server:cast(ConnectionName, hello_cast),
+  ConnectionName ! hello_info,
+  {ok, #{}} = apns_connection:code_change(old_version, #{}, []),
+
+  10 = apns_connection:backoff(17, 10),
+
+  ok = close_connection(ConnectionName),
+  [_] = meck:unload(),
   ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -287,3 +336,10 @@ mock_gun_await_up(Result) ->
   meck:expect(gun, await_up, fun(_, _) ->
     Result
   end).
+
+close_connection(ConnectionName) ->
+  ok = apns:close_connection(ConnectionName),
+  ktn_task:wait_for(fun() ->
+      is_process_alive(whereis(ConnectionName))
+    end, false),
+  ok.

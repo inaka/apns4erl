@@ -8,6 +8,7 @@
 
 -export([ get_feedback/1
         , get_feedback_timeout/1
+        , test_coverage/1
         ]).
 
 -type config() :: [{atom(), term()}].
@@ -19,6 +20,7 @@
 -spec all() -> [atom()].
 all() ->  [ get_feedback
           , get_feedback_timeout
+          , test_coverage
           ].
 
 -spec init_per_suite(config()) -> config().
@@ -81,5 +83,23 @@ get_feedback_timeout(_Config) ->
 
   % turn back the original values
   ok = application:set_env(apns, timeout, OriginalTimeout),
+  [_] = meck:unload(),
+  ok.
+
+-spec test_coverage(config()) -> ok.
+test_coverage(_Config) ->
+  ok = meck:expect(ssl, connect, fun(_, _, _, _) ->
+    {error, error_reason}
+  end),
+
+  {error, error_reason} = apns:get_feedback(),
+
+  {ok, KeyFile} = application:get_env(apns, keyfile),
+  application:unset_env(apns, keyfile),
+
+  {error, error_reason} = apns:get_feedback(),
+
+  % turn back the original values
+  ok = application:set_env(apns, keyfile, KeyFile),
   [_] = meck:unload(),
   ok.
