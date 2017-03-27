@@ -22,6 +22,7 @@
 %% API
 -export([ start/0
         , stop/0
+        , connect/1
         , connect/2
         , close_connection/1
         , push_notification/3
