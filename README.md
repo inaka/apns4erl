@@ -78,7 +78,7 @@ After filling the `config` file and running `apns4erl` app we can start creating
 1> apns:connect(cert, my_first_connection).
 {ok,<0.87.0>}
 2> apns:connect(#{name => aother_cert, apple_host => "api.push.apple.com", apple_host => 443,
-certtile => "cert.pem", keyfile => "priv/key.pem", type => cert}).
+certtile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.95.0>}
 ```
