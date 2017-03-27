@@ -75,8 +75,10 @@ ok
 After filling the `config` file and running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the function `apns:connect/2` where the first argument is the type and the second one is the connection's name.
 
 ```erlang
-2> apns:connect(cert, my_first_connection).
+1> apns:connect(cert, my_first_connection).
 {ok,<0.87.0>}
+2> apns:connect(#{name => aother_cert, apple_host => "api.push.apple.com", apple_host => 443,
+certtile => "cert.pem", keyfile => "priv/key.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.95.0>}
 ```
