@@ -38,7 +38,7 @@ sign(Data) ->
   Command = "printf '" ++
             binary_to_list(Data) ++
             "' | openssl dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
-  {0, Result} = ktn_os:command(Command),
+  Result = os:cmd(Command),
   list_to_binary(Result).
 
 %% Retrieves the epoch date.
