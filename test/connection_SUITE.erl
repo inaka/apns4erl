@@ -200,7 +200,10 @@ push_notification_token(_Config) ->
              },
   Notification = #{<<"aps">> => #{<<"alert">> => <<"more messages">>}},
   DeviceId = <<"device_id2">>,
+
+  ok = maybe_mock_apns_os(),
   Token = apns:generate_token(<<"TeamId">>, <<"KeyId">>),
+
   ok = mock_gun_post(),
   ResponseCode = 200,
   ResponseHeaders = [{<<"apns-id">>, <<"apnsid2">>}],
@@ -218,8 +221,9 @@ push_notification_token(_Config) ->
                                 , DeviceId
                                 , Notification
                                 ),
+
   ok = close_connection(ConnectionName),
-  [_] = meck:unload(),
+  _ = meck:unload(),
   ok.
 
 -spec push_notification_timeout(config()) -> ok.
@@ -314,7 +318,6 @@ mock_gun_open() ->
     {ok, spawn(fun test_function/0)}
   end).
 
-
 -spec mock_gun_post() -> ok.
 mock_gun_post() ->
   meck:expect(gun, post, fun(_, _, _, _) ->
@@ -337,6 +340,14 @@ mock_gun_await_body(Body) ->
 mock_gun_await_up(Result) ->
   meck:expect(gun, await_up, fun(_, _) ->
     Result
+  end).
+
+-spec maybe_mock_apns_os() -> ok.
+maybe_mock_apns_os() ->
+  %% @TODO: Add logic to validate if the user wants to avoid to mock this call,
+  %% and make the real call with real files instead.
+  meck:expect(apns_os, cmd, fun(_) ->
+    {0, "12345678"}
   end).
 
 close_connection(ConnectionName) ->
