@@ -235,7 +235,8 @@ handle_info(reconnect, State) ->
       {ok, _} = timer:send_after(Sleep, reconnect),
       {noreply, State#{backoff => Backoff + 1}}
   end;
-handle_info(timeout, #{connection := Connection, gun_connection := GunConn, client := Client} = State) ->
+handle_info(timeout, #{connection := Connection, gun_connection := GunConn,
+                       client := Client} = State) ->
   Timeout = maps:get(timeout, Connection),
   case gun:await_up(GunConn, Timeout) of
     {ok, http2} ->
