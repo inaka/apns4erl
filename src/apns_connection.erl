@@ -340,7 +340,8 @@ get_device_path(DeviceId) ->
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
 
--spec push(pid(), apns:device_id(), apns:headers(), notification(), integer()) ->
+-spec push(pid(), apns:device_id(), apns:headers(), notification(),
+           integer()) ->
   apns:response().
 push(GunConn, DeviceId, HeadersMap, Notification, Timeout) ->
   Headers = get_headers(HeadersMap),
