@@ -183,14 +183,14 @@ handle_call( {push_notification, DeviceId, Notification, Headers}
            , _From
            , State) ->
   #{connection := Connection, gun_connection := GunConn} = State,
-  Timeout = maps:get(timeout, Connection),
+  #{timeout := Timeout} = Connection,
   Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
   {reply, Response, State};
 handle_call( {push_notification, Token, DeviceId, Notification, HeadersMap}
            , _From
            , State) ->
   #{connection := Connection, gun_connection := GunConn} = State,
-  Timeout = maps:get(timeout, Connection),
+  #{timeout := Timeout} = Connection,
   Headers = add_authorization_header(HeadersMap, Token),
   Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
   {reply, Response, State};
@@ -223,7 +223,7 @@ handle_info(reconnect, State) ->
    , backoff_ceiling := Ceiling
    } = State,
   GunConn = open_gun_connection(Connection),
-  Timeout = maps:get(timeout, Connection),
+  #{timeout := Timeout} = Connection,
   case gun:await_up(GunConn, Timeout) of
     {ok, http2} ->
       Client ! {connection_up, self()},
@@ -237,7 +237,7 @@ handle_info(reconnect, State) ->
   end;
 handle_info(timeout, #{connection := Connection, gun_connection := GunConn,
                        client := Client} = State) ->
-  Timeout = maps:get(timeout, Connection),
+  #{timeout := Timeout} = Connection,
   case gun:await_up(GunConn, Timeout) of
     {ok, http2} ->
       Client ! {connection_up, self()},
