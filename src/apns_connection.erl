@@ -65,6 +65,7 @@
                          , apple_port := inet:port_number()
                          , certfile   => path()
                          , keyfile    => path()
+                         , timeout    => integer()
                          , type       := type()
                          }.
 
@@ -93,21 +94,25 @@ default_connection(cert, ConnectionName) ->
   {ok, Port} = application:get_env(apns, apple_port),
   {ok, Certfile} = application:get_env(apns, certfile),
   {ok, Keyfile} = application:get_env(apns, keyfile),
+  {ok, Timeout} = application:get_env(apns, timeout),
 
   #{ name       => ConnectionName
    , apple_host => Host
    , apple_port => Port
    , certfile   => Certfile
    , keyfile    => Keyfile
+   , timeout    => Timeout
    , type       => cert
   };
 default_connection(token, ConnectionName) ->
   {ok, Host} = application:get_env(apns, apple_host),
   {ok, Port} = application:get_env(apns, apple_port),
+  {ok, Timeout} = application:get_env(apns, timeout),
 
   #{ name       => ConnectionName
    , apple_host => Host
    , apple_port => Port
+   , timeout    => Timeout
    , type       => token
   }.
 
@@ -177,15 +182,17 @@ handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
 handle_call( {push_notification, DeviceId, Notification, Headers}
            , _From
            , State) ->
-  #{gun_connection := GunConn} = State,
-  Response = push(GunConn, DeviceId, Headers, Notification),
+  #{connection := Connection, gun_connection := GunConn} = State,
+  #{timeout := Timeout} = Connection,
+  Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
   {reply, Response, State};
 handle_call( {push_notification, Token, DeviceId, Notification, HeadersMap}
            , _From
            , State) ->
-  #{gun_connection := GunConn} = State,
+  #{connection := Connection, gun_connection := GunConn} = State,
+  #{timeout := Timeout} = Connection,
   Headers = add_authorization_header(HeadersMap, Token),
-  Response = push(GunConn, DeviceId, Headers, Notification),
+  Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
   {reply, Response, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -216,7 +223,7 @@ handle_info(reconnect, State) ->
    , backoff_ceiling := Ceiling
    } = State,
   GunConn = open_gun_connection(Connection),
-  {ok, Timeout} = application:get_env(apns, timeout),
+  #{timeout := Timeout} = Connection,
   case gun:await_up(GunConn, Timeout) of
     {ok, http2} ->
       Client ! {connection_up, self()},
@@ -228,8 +235,9 @@ handle_info(reconnect, State) ->
       {ok, _} = timer:send_after(Sleep, reconnect),
       {noreply, State#{backoff => Backoff + 1}}
   end;
-handle_info(timeout, #{gun_connection := GunConn, client := Client} = State) ->
-  {ok, Timeout} = application:get_env(apns, timeout),
+handle_info(timeout, #{connection := Connection, gun_connection := GunConn,
+                       client := Client} = State) ->
+  #{timeout := Timeout} = Connection,
   case gun:await_up(GunConn, Timeout) of
     {ok, http2} ->
       Client ! {connection_up, self()},
@@ -332,10 +340,10 @@ get_device_path(DeviceId) ->
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
 
--spec push(pid(), apns:device_id(), apns:headers(), notification()) ->
+-spec push(pid(), apns:device_id(), apns:headers(), notification(),
+           integer()) ->
   apns:response().
-push(GunConn, DeviceId, HeadersMap, Notification) ->
-  {ok, Timeout} = application:get_env(apns, timeout),
+push(GunConn, DeviceId, HeadersMap, Notification, Timeout) ->
   Headers = get_headers(HeadersMap),
   Path = get_device_path(DeviceId),
   StreamRef = gun:post(GunConn, Path, Headers, Notification),
