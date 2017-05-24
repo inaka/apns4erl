@@ -32,6 +32,7 @@
         , default_headers/0
         , generate_token/2
         , get_feedback/0
+        , get_feedback/1
         ]).
 
 -export_type([ json/0
@@ -174,8 +175,23 @@ default_headers() ->
 %% Requests for feedback to APNs. This requires Provider Certificate.
 -spec get_feedback() -> [feedback()] | {error, term()} | timeout.
 get_feedback() ->
+  {ok, Host} = application:get_env(apns, feedback_host),
+  {ok, Port} = application:get_env(apns, feedback_port),
+  {ok, Certfile} = application:get_env(apns, certfile),
+  Keyfile = application:get_env(apns, keyfile, undefined),
   {ok, Timeout} = application:get_env(apns, timeout),
-  apns_feedback:get_feedback(Timeout).
+  Config = #{ host     => Host
+            , port     => Port
+            , certfile => Certfile
+            , keyfile  => Keyfile
+            , timeout  => Timeout
+            },
+  get_feedback(Config).
+
+%% Requests for feedback to APNs. This requires Provider Certificate.
+-spec get_feedback(apns_feedback:feedback_config()) -> [feedback()] | {error, term()} | timeout.
+get_feedback(Config) ->
+  apns_feedback:get_feedback(Config).
 
 %%%===================================================================
 %%% Internal Functions

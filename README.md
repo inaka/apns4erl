@@ -46,6 +46,11 @@ First we have to fill our `config` data. There are two ways for do this, one is 
   , {apns_priority,    10}
   , {apns_topic,       "com.example.myapp"}
   , {apns_collapse_id, undefined}
+
+  %% Feedback
+  , {feedback_host,    "feedback.push.apple.com"}
+  , {feedback_port,    2195}
+  ]
   ]
 }
 ```
@@ -222,7 +227,16 @@ But when closing a connection makes sense `apns4erl` gives us the function `apns
 
 `apns4erl` also allows us to get feedback from APNs service. It does it thru the [binary API](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/BinaryProviderAPI.html).
 
-In order to get feedback we would need a `Provider Certificate` and have it set at `config` file as we do for `push notifications`. Then we will call `apns:get_feedback/0`. The response will be a list of `feedback()`
+In order to get feedback we would need a `Provider Certificate`. `apns4erl` provides us two functions, `apns:get_feedback/0` and `apns:get_feedback/1` which require some Feedback's information like url, port, timeout...  We can set that info in our `config` file and use `apns:get_feedback/0`. We can also send all that configuration as a parameter to `apns:get_feedback/1` where the config structure must looks like this:
+```erlang
+#{ host     := string()
+ , port     := pos_integer()
+ , certfile := string()
+ , keyfile  => string()
+ , timeout  := pos_integer()
+ }.
+```
+The response for both functions will be a list of `feedback()`
 
 ```erlang
 -type feedback() :: {calendar:datetime(), string()}.
