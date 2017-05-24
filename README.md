@@ -27,7 +27,7 @@ And you can check all of our open-source projects at [inaka.github.io](http://in
 
 ## How to use it?
 
-First we have to fill our `config` file. This is an example you can find at `test/test.config`:
+First we have to fill our `config` data. There are two ways for do this, one is filling a `config` file. This is an example you can find at `test/test.config`:
 
 ```
 {
@@ -50,6 +50,19 @@ First we have to fill our `config` file. This is an example you can find at `tes
 }
 ```
 
+The other way is send all that info as a parameter to `apns:connect/1` function encapsulated in a `apns_connection:connection()` structure:
+
+```erlang
+#{ name       := name()
+ , apple_host := host()
+ , apple_port := inet:port_number()
+ , certfile   => path()
+ , keyfile    => path()
+ , timeout    => integer()
+ , type       := type()
+ }.
+```
+
 APNs allows two connection types, one is using `Provider Certificates`. If you want to use that way make sure you fill the `certfile` and `keyfile`. Those are paths to the `Provider Certificated` and the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
 
 The other way to connect against APNs is using `Provider Authentication Tokens`, for this choice you must fill the field `token_keyfile`. This is a path to the Authentication Key provided by Apple. This is in `.p8` format and it doesn't need conversion.
@@ -64,7 +77,7 @@ This `key` will be needed in order to generate a token which will be used every 
 > rebar3 compile
 > erl -pa _build/default/lib/*/ebin -config test/test.config
 ```
-Don't forget your config file.
+Don't forget your config file if you want to use `apns:connect/2`.
 ```erlang
 1> apns:start().
 ok
@@ -72,12 +85,29 @@ ok
 
 ## Create connections
 
-After filling the `config` file and running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the function `apns:connect/2` where the first argument is the type and the second one is the connection's name.
+After running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the functions `apns:connect/1` and `apns:connect/2`.
+
+- `apns:connect/1`: This function accepts as a parameter an `apns_connection:connection()` structure.
+  ```erlang
+  #{ name       := name()
+   , apple_host := host()
+   , apple_port := inet:port_number()
+   , certfile   => path()
+   , keyfile    => path()
+   , timeout    => integer()
+   , type       := type()
+   }.
+  ```
+  where the `type` field indicates if is `cert` or `token`.
+
+- `apns:connect/2`: The first argument is the type and the second one is the connection's name. In order to use it successfully we have to fill the `config` file before, as explained in `how to use it?` section.
+
+Example:
 
 ```erlang
 1> apns:connect(cert, my_first_connection).
 {ok,<0.87.0>}
-2> apns:connect(#{name => aother_cert, apple_host => "api.push.apple.com", apple_host => 443,
+2> apns:connect(#{name => another_cert, apple_host => "api.push.apple.com", apple_host => 443,
 certtile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.95.0>}

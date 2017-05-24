@@ -73,12 +73,19 @@ stop() ->
   ok = application:stop(apns),
   ok.
 
-%% @doc Connects to APNs service with Provider Certificate
+%% @doc Connects to APNs service with Provider Certificate or Token
 -spec connect( apns_connection:type(), apns_connection:name()) ->
   {ok, pid()} | {error, timeout}.
 connect(Type, ConnectionName) ->
   DefaultConnection = apns_connection:default_connection(Type, ConnectionName),
   connect(DefaultConnection).
+
+%% @doc Connects to APNs service
+-spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
+connect(Connection) ->
+  {ok, _} = apns_sup:create_connection(Connection),
+  Server = whereis(apns_connection:name(Connection)),
+  apns_connection:wait_apns_connection_up(Server).
 
 %% @doc Closes the connection with APNs service.
 -spec close_connection(apns_connection:name()) -> ok.
@@ -173,13 +180,6 @@ get_feedback() ->
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
-
-%% Connects to APNs service
--spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
-connect(Connection) ->
-  {ok, _} = apns_sup:create_connection(Connection),
-  Server = whereis(apns_connection:name(Connection)),
-  apns_connection:wait_apns_connection_up(Server).
 
 %% Build a headers() structure from environment variables.
 -spec default_headers(list(), headers()) -> headers().

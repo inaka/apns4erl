@@ -60,7 +60,7 @@
 -type path()         :: string().
 -type notification() :: binary().
 -type type()         :: cert | token.
--opaque connection() :: #{ name       := name()
+-type connection()   :: #{ name       := name()
                          , apple_host := host()
                          , apple_port := inet:port_number()
                          , certfile   => path()
