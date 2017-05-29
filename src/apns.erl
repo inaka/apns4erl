@@ -40,14 +40,16 @@
              , response/0
              , token/0
              , headers/0
+             , stream_id/0
              ]).
 
--type json()      :: #{binary() => binary() | json()}.
+-type json()      :: #{binary() | atom() => binary() | json()}.
 -type device_id() :: binary().
+-type stream_id() :: integer().
 -type response()  :: { integer()          % HTTP2 Code
                      , [term()]           % Response Headers
                      , [term()] | no_body % Response Body
-                     } | timeout.
+                     } | {timeout, stream_id()}.
 -type token()     :: binary().
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
@@ -84,9 +86,7 @@ connect(Type, ConnectionName) ->
 %% @doc Connects to APNs service
 -spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
 connect(Connection) ->
-  {ok, _} = apns_sup:create_connection(Connection),
-  Server = whereis(apns_connection:name(Connection)),
-  apns_connection:wait_apns_connection_up(Server).
+  apns_sup:create_connection(Connection).
 
 %% @doc Closes the connection with APNs service.
 -spec close_connection(apns_connection:name()) -> ok.

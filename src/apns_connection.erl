@@ -30,11 +30,10 @@
         , certfile/1
         , keyfile/1
         , type/1
-        , gun_connection/1
+        , http2_connection/1
         , close_connection/1
         , push_notification/4
         , push_notification/5
-        , wait_apns_connection_up/1
         ]).
 
 %% gen_server callbacks
@@ -69,11 +68,11 @@
                          , type       := type()
                          }.
 
--type state()        :: #{ connection      := connection()
-                         , gun_connection  := pid()
-                         , client          := pid()
-                         , backoff         := non_neg_integer()
-                         , backoff_ceiling := non_neg_integer()
+-type state()        :: #{ connection       := connection()
+                         , http2_connection := pid()
+                         , client           := pid()
+                         , backoff          := non_neg_integer()
+                         , backoff_ceiling  := non_neg_integer()
                          }.
 
 %%%===================================================================
@@ -121,10 +120,10 @@ default_connection(token, ConnectionName) ->
 close_connection(ConnectionName) ->
   gen_server:cast(ConnectionName, stop).
 
-%% @doc Returns the gun's connection PID. This function is only used in tests.
--spec gun_connection(name()) -> pid().
-gun_connection(ConnectionName) ->
-  gen_server:call(ConnectionName, gun_connection).
+%% @doc Returns the http2's connection PID. This function is only used in tests.
+-spec http2_connection(name()) -> pid().
+http2_connection(ConnectionName) ->
+  gen_server:call(ConnectionName, http2_connection).
 
 %% @doc Pushes notification to certificate APNs connection.
 -spec push_notification( name()
@@ -132,11 +131,9 @@ gun_connection(ConnectionName) ->
                        , notification()
                        , apns:headers()) -> apns:response().
 push_notification(ConnectionName, DeviceId, Notification, Headers) ->
-  gen_server:call(ConnectionName, { push_notification
-                                  , DeviceId
-                                  , Notification
-                                  , Headers
-                                  }).
+  {Timeout, StreamId} =
+    gen_server:call(ConnectionName, {push_notification, DeviceId, Notification, Headers}),
+  wait_response(ConnectionName, Timeout, StreamId).
 
 %% @doc Pushes notification to certificate APNs connection.
 -spec push_notification( name()
@@ -145,55 +142,45 @@ push_notification(ConnectionName, DeviceId, Notification, Headers) ->
                        , notification()
                        , apns:headers()) -> apns:response().
 push_notification(ConnectionName, Token, DeviceId, Notification, Headers) ->
-  gen_server:call(ConnectionName, { push_notification
-                                  , Token
-                                  , DeviceId
-                                  , Notification
-                                  , Headers
-                                  }).
-
-%% @doc Waits until receive the `connection_up` message
--spec wait_apns_connection_up(pid()) -> {ok, pid()} | {error, timeout}.
-wait_apns_connection_up(Server) ->
-  receive
-    {connection_up, Server} -> {ok, Server};
-    {timeout, Server}       -> {error, timeout}
-  end.
+  {Timeout, StreamId} =
+    gen_server:call(ConnectionName, {push_notification, Token, DeviceId, Notification, Headers}),
+  wait_response(ConnectionName, Timeout, StreamId).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
--spec init({connection(), pid()}) -> {ok, State :: state(), timeout()}.
+-spec init({connection(), pid()}) -> {ok, State :: state()}.
 init({Connection, Client}) ->
-  GunConnectionPid = open_gun_connection(Connection),
+  process_flag(trap_exit, true),
+  ConnectionPid = open_http2_connection(Connection),
 
-  {ok, #{ connection      => Connection
-        , gun_connection  => GunConnectionPid
-        , client          => Client
-        , backoff         => 1
-        , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
-        }, 0}.
+  {ok, #{ connection       => Connection
+        , http2_connection => ConnectionPid
+        , client           => Client
+        , backoff          => 1
+        , backoff_ceiling  => application:get_env(apns, backoff_ceiling, 10)
+        }}.
 
 -spec handle_call( Request :: term(), From :: {pid(), term()}, State) ->
   {reply, ok, State}.
-handle_call(gun_connection, _From, #{gun_connection := GunConn} = State) ->
-  {reply, GunConn, State};
+handle_call(http2_connection, _From, #{http2_connection := HTTP2Conn} = State) ->
+  {reply, HTTP2Conn, State};
 handle_call( {push_notification, DeviceId, Notification, Headers}
            , _From
            , State) ->
-  #{connection := Connection, gun_connection := GunConn} = State,
+  #{connection := Connection, http2_connection := HTTP2Conn} = State,
   #{timeout := Timeout} = Connection,
-  Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
-  {reply, Response, State};
+  StreamId = push(HTTP2Conn, DeviceId, Headers, Notification, Connection),
+  {reply, {Timeout, StreamId}, State};
 handle_call( {push_notification, Token, DeviceId, Notification, HeadersMap}
            , _From
            , State) ->
-  #{connection := Connection, gun_connection := GunConn} = State,
-  #{timeout := Timeout} = Connection,
+  #{connection := Connection, http2_connection := HTTP2Conn} = State,
   Headers = add_authorization_header(HeadersMap, Token),
-  Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
-  {reply, Response, State};
+  #{timeout := Timeout} = Connection,
+  StreamId = push(HTTP2Conn, DeviceId, Headers, Notification, Connection),
+  {reply, {Timeout, StreamId}, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -205,13 +192,13 @@ handle_cast(_Request, State) ->
   {noreply, State}.
 
 -spec handle_info(Info :: timeout() | term(), State) -> {noreply, State}.
-handle_info( {gun_down, GunConn, http2, closed, _, _}
-           , #{ gun_connection  := GunConn
-              , client          := Client
-              , backoff         := Backoff
-              , backoff_ceiling := Ceiling
+handle_info( {'EXIT', HTTP2Conn, _}
+           , #{ http2_connection := HTTP2Conn
+              , client           := Client
+              , backoff          := Backoff
+              , backoff_ceiling  := Ceiling
               } = State) ->
-  ok = gun:close(GunConn),
+  ok = h2_client:stop(HTTP2Conn),
   Client ! {reconnecting, self()},
   Sleep = backoff(Backoff, Ceiling) * 1000, % seconds to wait before reconnect
   {ok, _} = timer:send_after(Sleep, reconnect),
@@ -219,33 +206,16 @@ handle_info( {gun_down, GunConn, http2, closed, _, _}
 handle_info(reconnect, State) ->
   #{ connection      := Connection
    , client          := Client
-   , backoff         := Backoff
-   , backoff_ceiling := Ceiling
    } = State,
-  GunConn = open_gun_connection(Connection),
-  #{timeout := Timeout} = Connection,
-  case gun:await_up(GunConn, Timeout) of
-    {ok, http2} ->
-      Client ! {connection_up, self()},
-      {noreply, State#{ gun_connection => GunConn
-                      , backoff        => 1}};
-    {error, timeout} ->
-      ok = gun:close(GunConn),
-      Sleep = backoff(Backoff, Ceiling) * 1000, % seconds to wait
-      {ok, _} = timer:send_after(Sleep, reconnect),
-      {noreply, State#{backoff => Backoff + 1}}
-  end;
-handle_info(timeout, #{connection := Connection, gun_connection := GunConn,
-                       client := Client} = State) ->
-  #{timeout := Timeout} = Connection,
-  case gun:await_up(GunConn, Timeout) of
-    {ok, http2} ->
-      Client ! {connection_up, self()},
-      {noreply, State};
-    {error, timeout} ->
-      Client ! {timeout, self()},
-      {stop, timeout, State}
-  end;
+  HTTP2Conn = open_http2_connection(Connection),
+  Client ! {connection_up, self()},
+  {noreply, State#{http2_connection => HTTP2Conn , backoff => 1}};
+handle_info({'END_STREAM', StreamId}, #{http2_connection := HTTP2Conn, client := Client} = State) ->
+  {ok, {ResponseHeaders, ResponseBody}} = h2_client:get_response(HTTP2Conn, StreamId),
+  {Status, ResponseHeaders2} = normalize_response(ResponseHeaders),
+  ResponseBody2 = normalize_response_body(ResponseBody),
+  Client ! {apns_response, self(), StreamId, {Status, ResponseHeaders2, ResponseBody2}},
+  {noreply, State};
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -294,10 +264,9 @@ type(#{type := Type}) ->
 %%% Internal Functions
 %%%===================================================================
 
--spec open_gun_connection(connection()) -> GunConnectionPid :: pid().
-open_gun_connection(Connection) ->
+-spec open_http2_connection(connection()) -> ConnectionPid :: pid().
+open_http2_connection(Connection) ->
   Host = host(Connection),
-  Port = port(Connection),
 
   TransportOpts = case type(Connection) of
     cert ->
@@ -307,16 +276,11 @@ open_gun_connection(Connection) ->
     token ->
       []
   end,
+  {ok, ConnectionPid} = h2_client:start_link(https, Host, TransportOpts),
+  ConnectionPid.
 
-  {ok, GunConnectionPid} = gun:open( Host
-                                   , Port
-                                   , #{ protocols => [http2]
-                                      , transport_opts => TransportOpts
-                                      }),
-  GunConnectionPid.
-
--spec get_headers(apns:headers()) -> list().
-get_headers(Headers) ->
+-spec get_headers(binary(), apns:headers(), connection()) -> list().
+get_headers(DeviceId, Headers, Connection) ->
   List = [ {<<"apns-id">>, apns_id}
          , {<<"apns-expiration">>, apns_expiration}
          , {<<"apns-priority">>, apns_priority}
@@ -330,7 +294,18 @@ get_headers(Headers) ->
       Value -> [{ActualHeader, Value}]
     end
   end,
-  lists:flatmap(F, List).
+  Headers2 = lists:flatmap(F, List),
+  lists:append(Headers2, mandatory_headers(DeviceId, Connection)).
+
+-spec mandatory_headers(binary(), connection()) -> list().
+mandatory_headers(DeviceId, #{apple_host := Host, apple_port := Port}) ->
+  Host2 = list_to_binary(Host),
+  Port2 = integer_to_binary(Port),
+  [ {<<":method">>, <<"POST">>}
+  , {<<":path">>, get_device_path(DeviceId)}
+  , {<<":scheme">>, <<"https">>}
+  , {<<":authority">>, <<Host2/binary, $:, Port2/binary>>}
+  ].
 
 -spec get_device_path(apns:device_id()) -> binary().
 get_device_path(DeviceId) ->
@@ -340,21 +315,31 @@ get_device_path(DeviceId) ->
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
 
--spec push(pid(), apns:device_id(), apns:headers(), notification(),
-           integer()) ->
-  apns:response().
-push(GunConn, DeviceId, HeadersMap, Notification, Timeout) ->
-  Headers = get_headers(HeadersMap),
-  Path = get_device_path(DeviceId),
-  StreamRef = gun:post(GunConn, Path, Headers, Notification),
-  case gun:await(GunConn, StreamRef, Timeout) of
-    {response, fin, Status, ResponseHeaders} ->
-      {Status, ResponseHeaders, no_body};
-    {response, nofin, Status, ResponseHeaders} ->
-      {ok, Body} = gun:await_body(GunConn, StreamRef, Timeout),
-      DecodedBody = jsx:decode(Body),
-      {Status, ResponseHeaders, DecodedBody};
-    {error, timeout} -> timeout
+-spec push(pid(), apns:device_id(), apns:headers(), notification(), connection()) ->
+  apns:stream_id().
+push(HTTP2Conn, DeviceId, HeadersMap, Notification, Connection) ->
+  Headers = get_headers(DeviceId, HeadersMap, Connection),
+  {ok, StreamID} = h2_client:send_request(HTTP2Conn, Headers, Notification),
+  StreamID.
+
+-spec normalize_response(list()) -> {integer(), list()}.
+normalize_response(ResponseHeaders) ->
+  {<<":status">>, Status} = lists:keyfind(<<":status">>, 1, ResponseHeaders),
+  {binary_to_integer(Status), lists:keydelete(<<":status">>, 1, ResponseHeaders)}.
+
+-spec normalize_response_body(list()) -> list() | no_body.
+normalize_response_body([]) ->
+  no_body;
+normalize_response_body([ResponseBody]) ->
+  jsx:decode(ResponseBody).
+
+-spec wait_response(name(), integer(), integer()) -> apns:response().
+wait_response(ConnectionName, Timeout, StreamID) ->
+  Server = whereis(ConnectionName),
+  receive
+    {apns_response, Server, StreamID, Response} -> Response
+  after
+    Timeout -> {timeout, StreamID}
   end.
 
 -spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
