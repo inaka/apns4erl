@@ -212,10 +212,28 @@ We can use this token for an entire hour, after that we will receive something l
 
 ## Reconnection
 
-If network goes down or something unexpected happens the `gun` connection with APNs will go down. In that case `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
-
+If something unexpected happens and the `chatterbox` connection with APNs crashes `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
 
 We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time adding the `backoff_ceiling` variable on the `config` file. By default it is set to 10 (seconds).
+
+## Timeout
+
+When we call `apns:push_notification/3,4` or `apns:push_notification_token/4,5` we could get a `timeout` that could be caused if the network went down. Here is the `timeout` format:
+
+```erlang
+{timeout, stream_id()}
+```
+where that `stream_id()` is an identifier for the notification.
+
+
+Getting a `timeout` doesn't mean your notification to APNs is lost. If `apns4erl` connects to network again it will try to send your notification, in that case `apns4erl` will send back a message to the client with the format:
+
+```erlang
+{apns_response, ServerPid, StreamID, Response}
+```
+where that StreamId should match with the `stream_id` we got on the `timeout` tuple.
+
+You should check your client inbox after a timeout but it is not guaranteed your message was send successfully.
 
 ## Close connections
 
