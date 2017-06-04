@@ -1,13 +1,14 @@
 {application, apns, [
-  {description, "APNs provider for Apple Push Notification services (APNs) in Erlang"},
-  {vsn, "2.0.0"},
-  {id, "apns"},
+  {description, "APNs provider for Apple Push Notification services (APNs) in Erlang. It supports the HTTP2 API."},
+  {vsn, "2.1.0"},
+  {id, "apns4erl"},
+  {pkg_name, apns4erl},
   {registered, []},
   {applications, [
     kernel,
     stdlib,
     jsx,
-    gun,
+    chatterbox,
     base64url
   ]},
   {modules, []},

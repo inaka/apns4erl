@@ -32,6 +32,7 @@
         , default_headers/0
         , generate_token/2
         , get_feedback/0
+        , get_feedback/1
         ]).
 
 -export_type([ json/0
@@ -39,14 +40,16 @@
              , response/0
              , token/0
              , headers/0
+             , stream_id/0
              ]).
 
--type json()      :: #{binary() => binary() | json()}.
+-type json()      :: #{binary() | atom() => binary() | json()}.
 -type device_id() :: binary().
+-type stream_id() :: integer().
 -type response()  :: { integer()          % HTTP2 Code
                      , [term()]           % Response Headers
                      , [term()] | no_body % Response Body
-                     } | timeout.
+                     } | {timeout, stream_id()}.
 -type token()     :: binary().
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
@@ -73,12 +76,17 @@ stop() ->
   ok = application:stop(apns),
   ok.
 
-%% @doc Connects to APNs service with Provider Certificate
+%% @doc Connects to APNs service with Provider Certificate or Token
 -spec connect( apns_connection:type(), apns_connection:name()) ->
   {ok, pid()} | {error, timeout}.
 connect(Type, ConnectionName) ->
   DefaultConnection = apns_connection:default_connection(Type, ConnectionName),
   connect(DefaultConnection).
+
+%% @doc Connects to APNs service
+-spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
+connect(Connection) ->
+  apns_sup:create_connection(Connection).
 
 %% @doc Closes the connection with APNs service.
 -spec close_connection(apns_connection:name()) -> ok.
@@ -167,19 +175,27 @@ default_headers() ->
 %% Requests for feedback to APNs. This requires Provider Certificate.
 -spec get_feedback() -> [feedback()] | {error, term()} | timeout.
 get_feedback() ->
+  {ok, Host} = application:get_env(apns, feedback_host),
+  {ok, Port} = application:get_env(apns, feedback_port),
+  {ok, Certfile} = application:get_env(apns, certfile),
+  Keyfile = application:get_env(apns, keyfile, undefined),
   {ok, Timeout} = application:get_env(apns, timeout),
-  apns_feedback:get_feedback(Timeout).
+  Config = #{ host     => Host
+            , port     => Port
+            , certfile => Certfile
+            , keyfile  => Keyfile
+            , timeout  => Timeout
+            },
+  get_feedback(Config).
+
+%% Requests for feedback to APNs. This requires Provider Certificate.
+-spec get_feedback(apns_feedback:feedback_config()) -> [feedback()] | {error, term()} | timeout.
+get_feedback(Config) ->
+  apns_feedback:get_feedback(Config).
 
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
-
-%% Connects to APNs service
--spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
-connect(Connection) ->
-  {ok, _} = apns_sup:create_connection(Connection),
-  Server = whereis(apns_connection:name(Connection)),
-  apns_connection:wait_apns_connection_up(Server).
 
 %% Build a headers() structure from environment variables.
 -spec default_headers(list(), headers()) -> headers().

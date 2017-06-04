@@ -27,7 +27,7 @@ And you can check all of our open-source projects at [inaka.github.io](http://in
 
 ## How to use it?
 
-First we have to fill our `config` file. This is an example you can find at `test/test.config`:
+First we have to fill our `config` data. There are two ways for do this, one is filling a `config` file. This is an example you can find at `test/test.config`:
 
 ```
 {
@@ -46,8 +46,26 @@ First we have to fill our `config` file. This is an example you can find at `tes
   , {apns_priority,    10}
   , {apns_topic,       "com.example.myapp"}
   , {apns_collapse_id, undefined}
+
+  %% Feedback
+  , {feedback_host,    "feedback.push.apple.com"}
+  , {feedback_port,    2195}
+  ]
   ]
 }
+```
+
+The other way is send all that info as a parameter to `apns:connect/1` function encapsulated in a `apns_connection:connection()` structure:
+
+```erlang
+#{ name       := name()
+ , apple_host := host()
+ , apple_port := inet:port_number()
+ , certfile   => path()
+ , keyfile    => path()
+ , timeout    => integer()
+ , type       := type()
+ }.
 ```
 
 APNs allows two connection types, one is using `Provider Certificates`. If you want to use that way make sure you fill the `certfile` and `keyfile`. Those are paths to the `Provider Certificated` and the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
@@ -64,7 +82,7 @@ This `key` will be needed in order to generate a token which will be used every 
 > rebar3 compile
 > erl -pa _build/default/lib/*/ebin -config test/test.config
 ```
-Don't forget your config file.
+Don't forget your config file if you want to use `apns:connect/2`.
 ```erlang
 1> apns:start().
 ok
@@ -72,12 +90,29 @@ ok
 
 ## Create connections
 
-After filling the `config` file and running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the function `apns:connect/2` where the first argument is the type and the second one is the connection's name.
+After running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the functions `apns:connect/1` and `apns:connect/2`.
+
+- `apns:connect/1`: This function accepts as a parameter an `apns_connection:connection()` structure.
+  ```erlang
+  #{ name       := name()
+   , apple_host := host()
+   , apple_port := inet:port_number()
+   , certfile   => path()
+   , keyfile    => path()
+   , timeout    => integer()
+   , type       := type()
+   }.
+  ```
+  where the `type` field indicates if is `cert` or `token`.
+
+- `apns:connect/2`: The first argument is the type and the second one is the connection's name. In order to use it successfully we have to fill the `config` file before, as explained in `how to use it?` section.
+
+Example:
 
 ```erlang
 1> apns:connect(cert, my_first_connection).
 {ok,<0.87.0>}
-2> apns:connect(#{name => aother_cert, apple_host => "api.push.apple.com", apple_host => 443,
+2> apns:connect(#{name => another_cert, apple_host => "api.push.apple.com", apple_host => 443,
 certtile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.95.0>}
@@ -177,10 +212,28 @@ We can use this token for an entire hour, after that we will receive something l
 
 ## Reconnection
 
-If network goes down or something unexpected happens the `gun` connection with APNs will go down. In that case `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
-
+If something unexpected happens and the `chatterbox` connection with APNs crashes `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
 
 We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time adding the `backoff_ceiling` variable on the `config` file. By default it is set to 10 (seconds).
+
+## Timeout
+
+When we call `apns:push_notification/3,4` or `apns:push_notification_token/4,5` we could get a `timeout` that could be caused if the network went down. Here is the `timeout` format:
+
+```erlang
+{timeout, stream_id()}
+```
+where that `stream_id()` is an identifier for the notification.
+
+
+Getting a `timeout` doesn't mean your notification to APNs is lost. If `apns4erl` connects to network again it will try to send your notification, in that case `apns4erl` will send back a message to the client with the format:
+
+```erlang
+{apns_response, ServerPid, StreamID, Response}
+```
+where that StreamId should match with the `stream_id` we got on the `timeout` tuple.
+
+You should check your client inbox after a timeout but it is not guaranteed your message was send successfully.
 
 ## Close connections
 
@@ -192,7 +245,16 @@ But when closing a connection makes sense `apns4erl` gives us the function `apns
 
 `apns4erl` also allows us to get feedback from APNs service. It does it thru the [binary API](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/BinaryProviderAPI.html).
 
-In order to get feedback we would need a `Provider Certificate` and have it set at `config` file as we do for `push notifications`. Then we will call `apns:get_feedback/0`. The response will be a list of `feedback()`
+In order to get feedback we would need a `Provider Certificate`. `apns4erl` provides us two functions, `apns:get_feedback/0` and `apns:get_feedback/1` which require some Feedback's information like url, port, timeout...  We can set that info in our `config` file and use `apns:get_feedback/0`. We can also send all that configuration as a parameter to `apns:get_feedback/1` where the config structure must looks like this:
+```erlang
+#{ host     := string()
+ , port     := pos_integer()
+ , certfile := string()
+ , keyfile  => string()
+ , timeout  := pos_integer()
+ }.
+```
+The response for both functions will be a list of `feedback()`
 
 ```erlang
 -type feedback() :: {calendar:datetime(), string()}.

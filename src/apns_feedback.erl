@@ -22,19 +22,25 @@
 % API
 -export([get_feedback/1]).
 
--export_type([feedback/0]).
+-export_type([feedback/0, feedback_config/0]).
 
--type feedback() :: {calendar:datetime(), string()}.
--type socket()   :: gen_tcp:socket().
+-type feedback()        :: {calendar:datetime(), string()}.
+-type socket()          :: gen_tcp:socket().
+-type feedback_config() :: #{ host     := string()
+                            , port     := pos_integer()
+                            , certfile := string()
+                            , keyfile  => string()
+                            , timeout  := pos_integer()
+                            }.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 %% Requests for feedback to APNs. This requires Provider Certificate.
--spec get_feedback(timeout()) -> [feedback()] | {error, term()} | timeout.
-get_feedback(Timeout) ->
-  case open_feedback(Timeout) of
+-spec get_feedback(feedback_config()) -> [feedback()] | {error, term()} | timeout.
+get_feedback(#{timeout := Timeout} = Config) ->
+  case open_feedback(Config) of
     {ok, Socket} ->
       Result = wait_for_feedback(Socket, Timeout),
       ssl:close(Socket),
@@ -47,19 +53,16 @@ get_feedback(Timeout) ->
 %%% Internal Functions
 %%%===================================================================
 
--spec open_feedback(timeout()) -> {ok, socket()} | {error, term()}.
-open_feedback(Timeout) ->
-  {ok, Host} = application:get_env(apns, feedback_host),
-  {ok, Port} = application:get_env(apns, feedback_port),
-  ssl:connect(Host, Port, ssl_opts(), Timeout).
+-spec open_feedback(feedback_config()) -> {ok, socket()} | {error, term()}.
+open_feedback(#{host := Host, port := Port, timeout := Timeout} = Config) ->
+  ssl:connect(Host, Port, ssl_opts(Config), Timeout).
 
--spec ssl_opts() -> list().
-ssl_opts() ->
-  Opts = case application:get_env(apns, keyfile) of
-    {ok, KeyFile} -> [{keyfile, KeyFile}];
-    undefined     -> []
+-spec ssl_opts(feedback_config()) -> list().
+ssl_opts(#{certfile := Certfile} = Config) ->
+  Opts = case maps:get(keyfile, Config, undefined) of
+    undefined -> [];
+    KeyFile   -> [{keyfile, KeyFile}]
   end,
-  {ok, Certfile} = application:get_env(apns, certfile),
   [{certfile, Certfile} | Opts].
 
 -spec wait_for_feedback(socket(), timeout()) -> [feedback()] | timeout.
