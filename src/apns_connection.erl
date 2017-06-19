@@ -82,6 +82,8 @@
 %% @doc starts the gen_server
 -spec start_link(connection(), pid()) ->
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+start_link(#{name := undefined} = Connection, Client) ->
+  gen_server:start_link(?MODULE, {Connection, Client}, []);
 start_link(Connection, Client) ->
   Name = name(Connection),
   gen_server:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
@@ -116,35 +118,35 @@ default_connection(token, ConnectionName) ->
   }.
 
 %% @doc Close the connection with APNs gracefully
--spec close_connection(name()) -> ok.
-close_connection(ConnectionName) ->
-  gen_server:cast(ConnectionName, stop).
+-spec close_connection(name() | pid()) -> ok.
+close_connection(ConnectionId) ->
+  gen_server:cast(ConnectionId, stop).
 
 %% @doc Returns the http2's connection PID. This function is only used in tests.
--spec http2_connection(name()) -> pid().
-http2_connection(ConnectionName) ->
-  gen_server:call(ConnectionName, http2_connection).
+-spec http2_connection(name() | pid()) -> pid().
+http2_connection(ConnectionId) ->
+  gen_server:call(ConnectionId, http2_connection).
 
 %% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name()
+-spec push_notification( name() | pid()
                        , apns:device_id()
                        , notification()
                        , apns:headers()) -> apns:response().
-push_notification(ConnectionName, DeviceId, Notification, Headers) ->
+push_notification(ConnectionId, DeviceId, Notification, Headers) ->
   {Timeout, StreamId} =
-    gen_server:call(ConnectionName, {push_notification, DeviceId, Notification, Headers}),
-  wait_response(ConnectionName, Timeout, StreamId).
+    gen_server:call(ConnectionId, {push_notification, DeviceId, Notification, Headers}),
+  wait_response(ConnectionId, Timeout, StreamId).
 
 %% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name()
+-spec push_notification( name() | pid()
                        , apns:token()
                        , apns:device_id()
                        , notification()
                        , apns:headers()) -> apns:response().
-push_notification(ConnectionName, Token, DeviceId, Notification, Headers) ->
+push_notification(ConnectionId, Token, DeviceId, Notification, Headers) ->
   {Timeout, StreamId} =
-    gen_server:call(ConnectionName, {push_notification, Token, DeviceId, Notification, Headers}),
-  wait_response(ConnectionName, Timeout, StreamId).
+    gen_server:call(ConnectionId, {push_notification, Token, DeviceId, Notification, Headers}),
+  wait_response(ConnectionId, Timeout, StreamId).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -333,11 +335,13 @@ normalize_response_body([]) ->
 normalize_response_body([ResponseBody]) ->
   jsx:decode(ResponseBody).
 
--spec wait_response(name(), integer(), integer()) -> apns:response().
-wait_response(ConnectionName, Timeout, StreamID) ->
-  Server = whereis(ConnectionName),
+-spec wait_response(name() | pid(), integer(), integer()) -> apns:response().
+wait_response(ConnectionId, Timeout, StreamID) when is_atom(ConnectionId) ->
+  Server = whereis(ConnectionId),
+  wait_response(Server, Timeout, StreamID);
+wait_response(ConnectionId, Timeout, StreamID) when is_pid(ConnectionId) ->
   receive
-    {apns_response, Server, StreamID, Response} -> Response
+    {apns_response, ConnectionId, StreamID, Response} -> Response
   after
     Timeout -> {timeout, StreamID}
   end.

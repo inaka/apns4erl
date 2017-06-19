@@ -8,6 +8,7 @@
 
 -export([ default_connection/1
         , connect/1
+        , connect_without_name/1
         , http2_connection_lost/1
         , push_notification/1
         , push_notification_token/1
@@ -25,6 +26,7 @@
 -spec all() -> [atom()].
 all() ->  [ default_connection
           , connect
+          , connect_without_name
           , http2_connection_lost
           , push_notification
           , push_notification_token
@@ -84,12 +86,25 @@ connect(_Config) ->
   [_] = meck:unload(),
   ok.
 
+-spec connect_without_name(config()) -> ok.
+connect_without_name(_Config) ->
+  ok = mock_open_http2_connection(),
+  ConnectionName = undefined,
+  {ok, ServerPid}  = apns:connect(cert, ConnectionName),
+  true = is_process_alive(ServerPid),
+  ok = close_connection(ServerPid),
+  [_] = meck:unload(),
+  ok.
+
 -spec http2_connection_lost(config()) -> ok.
 http2_connection_lost(_Config) ->
   ok = mock_open_http2_connection(),
   ConnectionName = my_connection2,
   {ok, ServerPid}  = apns:connect(cert, ConnectionName),
+
   HTTP2Conn = apns_connection:http2_connection(ConnectionName),
+  HTTP2Conn = apns_connection:http2_connection(ServerPid),
+
   true = is_process_alive(HTTP2Conn),
   HTTP2Conn ! {crash, ServerPid},
   ktn_task:wait_for(fun() -> is_process_alive(HTTP2Conn) end, false),
@@ -127,7 +142,7 @@ http2_connection_lost(_Config) ->
 push_notification(_Config) ->
   ok = mock_open_http2_connection(),
   ConnectionName = my_connection,
-  {ok, _ApnsPid} = apns:connect(cert, ConnectionName),
+  {ok, ServerPid} = apns:connect(cert, ConnectionName),
   Headers = #{ apns_id          => <<"apnsid">>
              , apns_expiration  => <<"0">>
              , apns_priority    => <<"10">>
@@ -150,8 +165,11 @@ push_notification(_Config) ->
 
   ok = mock_http2_get_response(ErrorCode, ErrorHeaders, ErrorBody),
 
-  {ErrorCode, ErrorHeaders, _ErrorBodyDecoded} =
+  {ErrorCode, ErrorHeaders, ErrorBodyDecoded} =
     apns:push_notification(ConnectionName, DeviceId, Notification),
+  {ErrorCode, ErrorHeaders, ErrorBodyDecoded} =
+    apns:push_notification(ServerPid, DeviceId, Notification),
+
   ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
@@ -160,7 +178,7 @@ push_notification(_Config) ->
 push_notification_token(_Config) ->
   ok = mock_open_http2_connection(),
   ConnectionName = my_token_connection,
-  {ok, _ApnsPid} = apns:connect(token, ConnectionName),
+  {ok, ServerPid} = apns:connect(token, ConnectionName),
   Headers = #{ apns_id          => <<"apnsid2">>
              , apns_expiration  => <<"0">>
              , apns_priority    => <<"10">>
@@ -182,6 +200,13 @@ push_notification_token(_Config) ->
                                 , Notification
                                 , Headers
                                 ),
+  {ResponseCode, ResponseHeaders, _Body} =
+    apns:push_notification_token( ServerPid
+                                , Token
+                                , DeviceId
+                                , Notification
+                                , Headers
+                                ),
   {ResponseCode, ResponseHeaders, no_body} =
     apns:push_notification_token( ConnectionName
                                 , Token
@@ -189,7 +214,7 @@ push_notification_token(_Config) ->
                                 , Notification
                                 ),
 
-  ok = close_connection(ConnectionName),
+  ok = close_connection(ServerPid),
   _ = meck:unload(),
   ok.
 
@@ -305,9 +330,12 @@ maybe_mock_apns_os() ->
     {0, "12345678"}
   end).
 
-close_connection(ConnectionName) ->
-  ok = apns:close_connection(ConnectionName),
+close_connection(ConnectionId) when is_atom(ConnectionId) ->
+  ConnectionPid = whereis(ConnectionId),
+  close_connection(ConnectionPid);
+close_connection(ConnectionId) when is_pid(ConnectionId) ->
+  ok = apns:close_connection(ConnectionId),
   ktn_task:wait_for(fun() ->
-      is_process_alive(whereis(ConnectionName))
+      is_process_alive(ConnectionId)
     end, false),
   ok.
