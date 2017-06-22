@@ -1,27 +1,42 @@
 # Change Log
 
+## [2.1.1](https://github.com/inaka/apns4erl/tree/2.1.1) (2017-06-22)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.1.0...2.1.1)
+
+**Closed issues:**
+
+- Create connections without name [\#183](https://github.com/inaka/apns4erl/issues/183)
+
+**Merged pull requests:**
+
+- \[\#183\] create connections without name [\#185](https://github.com/inaka/apns4erl/pull/185) ([ferigis](https://github.com/ferigis))
+- fixing hex package [\#179](https://github.com/inaka/apns4erl/pull/179) ([ferigis](https://github.com/ferigis))
+
 ## [2.1.0](https://github.com/inaka/apns4erl/tree/2.1.0) (2017-05-29)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/2.0.0...2.1.0)
 
 **Closed issues:**
 
-- research in HTTP2 clients [\#175](https://github.com/inaka/apns4erl/issues/175)
 - V2 Need async\_push\_notification [\#172](https://github.com/inaka/apns4erl/issues/172)
 - apns:push\_notification timeout [\#170](https://github.com/inaka/apns4erl/issues/170)
 - Erlang Crashing [\#168](https://github.com/inaka/apns4erl/issues/168)
-- implement apns:get\_feedback/1 [\#167](https://github.com/inaka/apns4erl/issues/167)
 - where do I register feedback handlers in v2? [\#166](https://github.com/inaka/apns4erl/issues/166)
 - Syntax error rebar3 compile [\#165](https://github.com/inaka/apns4erl/issues/165)
 - Erlang/OTP 18? [\#164](https://github.com/inaka/apns4erl/issues/164)
 - How to find out the invalid token? [\#163](https://github.com/inaka/apns4erl/issues/163)
-- Improve `apns\_utils:sing/1` in order to use `os:cmd/1` instead of `ktn\_os:command/1` [\#159](https://github.com/inaka/apns4erl/issues/159)
-- add apns:connection/1 documentation to README [\#156](https://github.com/inaka/apns4erl/issues/156)
 - update katana dependency [\#153](https://github.com/inaka/apns4erl/issues/153)
 - rebar3 compile error [\#152](https://github.com/inaka/apns4erl/issues/152)
 - Does  this project  support   apns ‘s HTTP/2 connection ? [\#122](https://github.com/inaka/apns4erl/issues/122)
+- Version Bump to 2.1.0 [\#177](https://github.com/inaka/apns4erl/issues/177)
+- research in HTTP2 clients [\#175](https://github.com/inaka/apns4erl/issues/175)
+- implement apns:get\_feedback/1 [\#167](https://github.com/inaka/apns4erl/issues/167)
+- Improve `apns\_utils:sing/1` in order to use `os:cmd/1` instead of `ktn\_os:command/1` [\#159](https://github.com/inaka/apns4erl/issues/159)
+- add apns:connection/1 documentation to README [\#156](https://github.com/inaka/apns4erl/issues/156)
+- upload to hex [\#151](https://github.com/inaka/apns4erl/issues/151)
 
 **Merged pull requests:**
 
+- \[\#177\] version bump to 2.1.0 [\#178](https://github.com/inaka/apns4erl/pull/178) ([ferigis](https://github.com/ferigis))
 - \[\#175\] replace gun by chatterbox [\#176](https://github.com/inaka/apns4erl/pull/176) ([ferigis](https://github.com/ferigis))
 - \[\#167\] adding apns:get\_feedback/1 [\#174](https://github.com/inaka/apns4erl/pull/174) ([ferigis](https://github.com/ferigis))
 - \[\#156\] update README file [\#173](https://github.com/inaka/apns4erl/pull/173) ([ferigis](https://github.com/ferigis))
