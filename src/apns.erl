@@ -32,6 +32,7 @@
         , default_headers/0
         , generate_token/2
         , get_feedback/0
+        , get_feedback/1
         ]).
 
 -export_type([ json/0
@@ -39,14 +40,16 @@
              , response/0
              , token/0
              , headers/0
+             , stream_id/0
              ]).
 
--type json()      :: #{binary() => binary() | json()}.
+-type json()      :: #{binary() | atom() => binary() | json()}.
 -type device_id() :: binary().
+-type stream_id() :: integer().
 -type response()  :: { integer()          % HTTP2 Code
                      , [term()]           % Response Headers
                      , [term()] | no_body % Response Body
-                     } | timeout.
+                     } | {timeout, stream_id()}.
 -type token()     :: binary().
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
@@ -73,37 +76,42 @@ stop() ->
   ok = application:stop(apns),
   ok.
 
-%% @doc Connects to APNs service with Provider Certificate
+%% @doc Connects to APNs service with Provider Certificate or Token
 -spec connect( apns_connection:type(), apns_connection:name()) ->
   {ok, pid()} | {error, timeout}.
 connect(Type, ConnectionName) ->
   DefaultConnection = apns_connection:default_connection(Type, ConnectionName),
   connect(DefaultConnection).
 
+%% @doc Connects to APNs service
+-spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
+connect(Connection) ->
+  apns_sup:create_connection(Connection).
+
 %% @doc Closes the connection with APNs service.
--spec close_connection(apns_connection:name()) -> ok.
-close_connection(ConnectionName) ->
-  apns_connection:close_connection(ConnectionName).
+-spec close_connection(apns_connection:name() | pid()) -> ok.
+close_connection(ConnectionId) ->
+  apns_connection:close_connection(ConnectionId).
 
 %% @doc Push notification to APNs. It will use the headers provided on the
 %%      environment variables.
--spec push_notification( apns_connection:name()
+-spec push_notification( apns_connection:name() | pid()
                        , device_id()
                        , json()
-                       ) -> response().
-push_notification(ConnectionName, DeviceId, JSONMap) ->
+                       ) -> response() | {error, not_connection_owner}.
+push_notification(ConnectionId, DeviceId, JSONMap) ->
   Headers = default_headers(),
-  push_notification(ConnectionName, DeviceId, JSONMap, Headers).
+  push_notification(ConnectionId, DeviceId, JSONMap, Headers).
 
 %% @doc Push notification to certificate APNs Connection.
--spec push_notification( apns_connection:name()
+-spec push_notification( apns_connection:name() | pid()
                        , device_id()
                        , json()
                        , headers()
-                       ) -> response().
-push_notification(ConnectionName, DeviceId, JSONMap, Headers) ->
+                       ) -> response() | {error, not_connection_owner}.
+push_notification(ConnectionId, DeviceId, JSONMap, Headers) ->
   Notification = jsx:encode(JSONMap),
-  apns_connection:push_notification( ConnectionName
+  apns_connection:push_notification( ConnectionId
                                    , DeviceId
                                    , Notification
                                    , Headers
@@ -111,25 +119,25 @@ push_notification(ConnectionName, DeviceId, JSONMap, Headers) ->
 
 %% @doc Push notification to APNs with authentication token. It will use the
 %%      headers provided on the environment variables.
--spec push_notification_token( apns_connection:name()
+-spec push_notification_token( apns_connection:name() | pid()
                              , token()
                              , device_id()
                              , json()
-                             ) -> response().
-push_notification_token(ConnectionName, Token, DeviceId, JSONMap) ->
+                             ) -> response() | {error, not_connection_owner}.
+push_notification_token(ConnectionId, Token, DeviceId, JSONMap) ->
   Headers = default_headers(),
-  push_notification_token(ConnectionName, Token, DeviceId, JSONMap, Headers).
+  push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers).
 
 %% @doc Push notification to authentication token APNs Connection.
--spec push_notification_token( apns_connection:name()
+-spec push_notification_token( apns_connection:name() | pid()
                              , token()
                              , device_id()
                              , json()
                              , headers()
-                             ) -> response().
-push_notification_token(ConnectionName, Token, DeviceId, JSONMap, Headers) ->
+                             ) -> response() | {error, not_connection_owner}.
+push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers) ->
   Notification = jsx:encode(JSONMap),
-  apns_connection:push_notification( ConnectionName
+  apns_connection:push_notification( ConnectionId
                                    , Token
                                    , DeviceId
                                    , Notification
@@ -167,19 +175,27 @@ default_headers() ->
 %% Requests for feedback to APNs. This requires Provider Certificate.
 -spec get_feedback() -> [feedback()] | {error, term()} | timeout.
 get_feedback() ->
+  {ok, Host} = application:get_env(apns, feedback_host),
+  {ok, Port} = application:get_env(apns, feedback_port),
+  {ok, Certfile} = application:get_env(apns, certfile),
+  Keyfile = application:get_env(apns, keyfile, undefined),
   {ok, Timeout} = application:get_env(apns, timeout),
-  apns_feedback:get_feedback(Timeout).
+  Config = #{ host     => Host
+            , port     => Port
+            , certfile => Certfile
+            , keyfile  => Keyfile
+            , timeout  => Timeout
+            },
+  get_feedback(Config).
+
+%% Requests for feedback to APNs. This requires Provider Certificate.
+-spec get_feedback(apns_feedback:feedback_config()) -> [feedback()] | {error, term()} | timeout.
+get_feedback(Config) ->
+  apns_feedback:get_feedback(Config).
 
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
-
-%% Connects to APNs service
--spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
-connect(Connection) ->
-  {ok, _} = apns_sup:create_connection(Connection),
-  Server = whereis(apns_connection:name(Connection)),
-  apns_connection:wait_apns_connection_up(Server).
 
 %% Build a headers() structure from environment variables.
 -spec default_headers(list(), headers()) -> headers().

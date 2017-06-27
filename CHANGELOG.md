@@ -1,22 +1,56 @@
 # Change Log
 
+## [2.1.1](https://github.com/inaka/apns4erl/tree/2.1.1) (2017-06-22)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.1.0...2.1.1)
+
+**Closed issues:**
+
+- Create connections without name [\#183](https://github.com/inaka/apns4erl/issues/183)
+
+**Merged pull requests:**
+
+- \[\#183\] create connections without name [\#185](https://github.com/inaka/apns4erl/pull/185) ([ferigis](https://github.com/ferigis))
+- fixing hex package [\#179](https://github.com/inaka/apns4erl/pull/179) ([ferigis](https://github.com/ferigis))
+
+## [2.1.0](https://github.com/inaka/apns4erl/tree/2.1.0) (2017-05-29)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.0.0...2.1.0)
+
+**Closed issues:**
+
+- V2 Need async\_push\_notification [\#172](https://github.com/inaka/apns4erl/issues/172)
+- apns:push\_notification timeout [\#170](https://github.com/inaka/apns4erl/issues/170)
+- Erlang Crashing [\#168](https://github.com/inaka/apns4erl/issues/168)
+- where do I register feedback handlers in v2? [\#166](https://github.com/inaka/apns4erl/issues/166)
+- Syntax error rebar3 compile [\#165](https://github.com/inaka/apns4erl/issues/165)
+- Erlang/OTP 18? [\#164](https://github.com/inaka/apns4erl/issues/164)
+- How to find out the invalid token? [\#163](https://github.com/inaka/apns4erl/issues/163)
+- update katana dependency [\#153](https://github.com/inaka/apns4erl/issues/153)
+- rebar3 compile error [\#152](https://github.com/inaka/apns4erl/issues/152)
+- Does  this project  support   apns ‘s HTTP/2 connection ? [\#122](https://github.com/inaka/apns4erl/issues/122)
+- Version Bump to 2.1.0 [\#177](https://github.com/inaka/apns4erl/issues/177)
+- research in HTTP2 clients [\#175](https://github.com/inaka/apns4erl/issues/175)
+- implement apns:get\_feedback/1 [\#167](https://github.com/inaka/apns4erl/issues/167)
+- Improve `apns\_utils:sing/1` in order to use `os:cmd/1` instead of `ktn\_os:command/1` [\#159](https://github.com/inaka/apns4erl/issues/159)
+- add apns:connection/1 documentation to README [\#156](https://github.com/inaka/apns4erl/issues/156)
+- upload to hex [\#151](https://github.com/inaka/apns4erl/issues/151)
+
+**Merged pull requests:**
+
+- \[\#177\] version bump to 2.1.0 [\#178](https://github.com/inaka/apns4erl/pull/178) ([ferigis](https://github.com/ferigis))
+- \[\#175\] replace gun by chatterbox [\#176](https://github.com/inaka/apns4erl/pull/176) ([ferigis](https://github.com/ferigis))
+- \[\#167\] adding apns:get\_feedback/1 [\#174](https://github.com/inaka/apns4erl/pull/174) ([ferigis](https://github.com/ferigis))
+- \[\#156\] update README file [\#173](https://github.com/inaka/apns4erl/pull/173) ([ferigis](https://github.com/ferigis))
+- handle timeout config for apns:connect/1 [\#171](https://github.com/inaka/apns4erl/pull/171) ([dcy](https://github.com/dcy))
+- Is it possible to use apns4erl and cowboy 1 in the same release? [\#162](https://github.com/inaka/apns4erl/pull/162) ([yzh44yzh](https://github.com/yzh44yzh))
+- \[\#159\] – Improve `apns\_utils:sing/1` in order to use `os:cmd/1`. [\#160](https://github.com/inaka/apns4erl/pull/160) ([cabol](https://github.com/cabol))
+- export apns:connect/1 [\#155](https://github.com/inaka/apns4erl/pull/155) ([dcy](https://github.com/dcy))
+- \[\#152\] update katana dependency [\#154](https://github.com/inaka/apns4erl/pull/154) ([Euen](https://github.com/Euen))
+
 ## [2.0.0](https://github.com/inaka/apns4erl/tree/2.0.0) (2017-02-13)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/1.0.6-final...2.0.0)
 
 **Closed issues:**
 
-- test coverage [\#148](https://github.com/inaka/apns4erl/issues/148)
-- Update README and rebar in order to support only R19+ [\#146](https://github.com/inaka/apns4erl/issues/146)
-- Handling responses improvement [\#138](https://github.com/inaka/apns4erl/issues/138)
-- Update Documentation [\#136](https://github.com/inaka/apns4erl/issues/136)
-- Push Notifications with Provider's Certificate [\#135](https://github.com/inaka/apns4erl/issues/135)
-- close connection gracefully [\#133](https://github.com/inaka/apns4erl/issues/133)
-- Get Feedback from APNs [\#132](https://github.com/inaka/apns4erl/issues/132)
-- Exponential Backoff when restarting gun connection [\#131](https://github.com/inaka/apns4erl/issues/131)
-- apns\_connection should monitor the gun\_connection [\#129](https://github.com/inaka/apns4erl/issues/129)
-- Create a Queue for tasks [\#127](https://github.com/inaka/apns4erl/issues/127)
-- Create Connections using Provider Auth Token [\#126](https://github.com/inaka/apns4erl/issues/126)
-- Create Connections using Provider Certificate [\#125](https://github.com/inaka/apns4erl/issues/125)
 - repeatedly  Reconnecting the Feedback server... [\#121](https://github.com/inaka/apns4erl/issues/121)
 - Cannot send notifications  [\#117](https://github.com/inaka/apns4erl/issues/117)
 - how can i know which token is invalid? [\#116](https://github.com/inaka/apns4erl/issues/116)
@@ -32,21 +66,35 @@
 - no function clause matching ssl\_cipher:hash\_algorithm\(239\) [\#57](https://github.com/inaka/apns4erl/issues/57)
 - Version Bump to 1.0.5 [\#55](https://github.com/inaka/apns4erl/issues/55)
 - Support latest APNs notification format [\#30](https://github.com/inaka/apns4erl/issues/30)
+- test coverage [\#148](https://github.com/inaka/apns4erl/issues/148)
+- Update README and rebar in order to support only R19+ [\#146](https://github.com/inaka/apns4erl/issues/146)
+- version bump to 2.0.0 [\#145](https://github.com/inaka/apns4erl/issues/145)
+- Handling responses improvement [\#138](https://github.com/inaka/apns4erl/issues/138)
+- Update Documentation [\#136](https://github.com/inaka/apns4erl/issues/136)
+- Push Notifications with Provider's Certificate [\#135](https://github.com/inaka/apns4erl/issues/135)
+- close connection gracefully [\#133](https://github.com/inaka/apns4erl/issues/133)
+- Get Feedback from APNs [\#132](https://github.com/inaka/apns4erl/issues/132)
+- Exponential Backoff when restarting gun connection [\#131](https://github.com/inaka/apns4erl/issues/131)
+- apns\_connection should monitor the gun\_connection [\#129](https://github.com/inaka/apns4erl/issues/129)
+- Create a Queue for tasks [\#127](https://github.com/inaka/apns4erl/issues/127)
+- Create Connections using Provider Auth Token [\#126](https://github.com/inaka/apns4erl/issues/126)
+- Create Connections using Provider Certificate [\#125](https://github.com/inaka/apns4erl/issues/125)
 
 **Merged pull requests:**
 
+- \[\#126\] Push notifications with Authentication Token [\#140](https://github.com/inaka/apns4erl/pull/140) ([ferigis](https://github.com/ferigis))
+- \[\#133\] create a method for closing the apns connection [\#134](https://github.com/inaka/apns4erl/pull/134) ([ferigis](https://github.com/ferigis))
+- app skeleton for version 2 [\#123](https://github.com/inaka/apns4erl/pull/123) ([ferigis](https://github.com/ferigis))
+- \[\#145\] Version Bump to 2.0.0 [\#150](https://github.com/inaka/apns4erl/pull/150) ([ferigis](https://github.com/ferigis))
 - \[\#148\] test coverage to 100% [\#149](https://github.com/inaka/apns4erl/pull/149) ([ferigis](https://github.com/ferigis))
 - \[\#146\] only R19+ supported [\#147](https://github.com/inaka/apns4erl/pull/147) ([ferigis](https://github.com/ferigis))
 - \[\#131\] backoff strategy implemented [\#144](https://github.com/inaka/apns4erl/pull/144) ([ferigis](https://github.com/ferigis))
 - Ferigis.132.implement feedback [\#142](https://github.com/inaka/apns4erl/pull/142) ([ferigis](https://github.com/ferigis))
 - \[\#136\] README updated [\#141](https://github.com/inaka/apns4erl/pull/141) ([ferigis](https://github.com/ferigis))
-- \[\#126\] Push notifications with Authentication Token [\#140](https://github.com/inaka/apns4erl/pull/140) ([ferigis](https://github.com/ferigis))
 - Important refactorization [\#139](https://github.com/inaka/apns4erl/pull/139) ([ferigis](https://github.com/ferigis))
 - \[\#135\] push notifications with provider certificate [\#137](https://github.com/inaka/apns4erl/pull/137) ([ferigis](https://github.com/ferigis))
-- \[\#133\] create a method for closing the apns connection [\#134](https://github.com/inaka/apns4erl/pull/134) ([ferigis](https://github.com/ferigis))
 - \[\#129\] monitor gun connection [\#130](https://github.com/inaka/apns4erl/pull/130) ([ferigis](https://github.com/ferigis))
 - \[\#125\] Connecting to APNs with Provider Certificates [\#128](https://github.com/inaka/apns4erl/pull/128) ([ferigis](https://github.com/ferigis))
-- app skeleton for version 2 [\#123](https://github.com/inaka/apns4erl/pull/123) ([ferigis](https://github.com/ferigis))
 
 ## [1.0.6-final](https://github.com/inaka/apns4erl/tree/1.0.6-final) (2016-10-25)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/1.0.6...1.0.6-final)
