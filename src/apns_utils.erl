@@ -39,7 +39,7 @@ sign(Data) ->
             binary_to_list(Data) ++
             "' | openssl dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
   {0, Result} = apns_os:cmd(Command),
-  list_to_binary(Result).
+  strip_b64(list_to_binary(Result)).
 
 %% Retrieves the epoch date.
 -spec epoch() -> integer().
@@ -61,3 +61,9 @@ bin_to_hexstr(Binary) ->
 seconds_to_timestamp(Secs) ->
   Epoch = 62167219200,
   calendar:gregorian_seconds_to_datetime(Secs + Epoch).
+
+
+%% Remove newline and equality characters
+-spec strip_b64(binary()) -> binary().
+strip_b64(BS) ->
+  binary:list_to_bin(binary:split(BS, [<<"\n">>, <<"=">>], [global])).
