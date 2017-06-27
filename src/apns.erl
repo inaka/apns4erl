@@ -98,7 +98,7 @@ close_connection(ConnectionId) ->
 -spec push_notification( apns_connection:name() | pid()
                        , device_id()
                        , json()
-                       ) -> response().
+                       ) -> response() | {error, not_connection_owner}.
 push_notification(ConnectionId, DeviceId, JSONMap) ->
   Headers = default_headers(),
   push_notification(ConnectionId, DeviceId, JSONMap, Headers).
@@ -108,7 +108,7 @@ push_notification(ConnectionId, DeviceId, JSONMap) ->
                        , device_id()
                        , json()
                        , headers()
-                       ) -> response().
+                       ) -> response() | {error, not_connection_owner}.
 push_notification(ConnectionId, DeviceId, JSONMap, Headers) ->
   Notification = jsx:encode(JSONMap),
   apns_connection:push_notification( ConnectionId
@@ -123,7 +123,7 @@ push_notification(ConnectionId, DeviceId, JSONMap, Headers) ->
                              , token()
                              , device_id()
                              , json()
-                             ) -> response().
+                             ) -> response() | {error, not_connection_owner}.
 push_notification_token(ConnectionId, Token, DeviceId, JSONMap) ->
   Headers = default_headers(),
   push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers).
@@ -134,7 +134,7 @@ push_notification_token(ConnectionId, Token, DeviceId, JSONMap) ->
                              , device_id()
                              , json()
                              , headers()
-                             ) -> response().
+                             ) -> response() | {error, not_connection_owner}.
 push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers) ->
   Notification = jsx:encode(JSONMap),
   apns_connection:push_notification( ConnectionId
