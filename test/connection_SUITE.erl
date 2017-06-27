@@ -13,6 +13,7 @@
         , push_notification/1
         , push_notification_token/1
         , push_notification_timeout/1
+        , restrict_calls_to_owner/1
         , default_headers/1
         , test_coverage/1
         ]).
@@ -31,6 +32,7 @@ all() ->  [ default_connection
           , push_notification
           , push_notification_token
           , push_notification_timeout
+          , restrict_calls_to_owner
           , default_headers
           , test_coverage
           ].
@@ -216,6 +218,29 @@ push_notification_token(_Config) ->
 
   ok = close_connection(ServerPid),
   _ = meck:unload(),
+  ok.
+
+-spec restrict_calls_to_owner(config()) -> ok.
+restrict_calls_to_owner(_Config) ->
+  ok = mock_open_http2_connection(),
+  ok = mock_http2_post(),
+  Self = self(),
+
+  SpawnedPid = spawn(fun() ->
+    {ok, Pid} = apns:connect(cert, undefined),
+    Self ! {self(), Pid}
+  end),
+
+  ConnectionPid = receive
+    {SpawnedPid, ServerPid} -> ServerPid
+  end,
+
+  {error, not_connection_owner} = apns:push_notification(ConnectionPid, <<"device_id">>, #{}, #{}),
+  {error, not_connection_owner} =
+    apns:push_notification_token(ConnectionPid, <<"token">>, <<"device_id">>, #{}, #{}),
+
+  ok = close_connection(ConnectionPid),
+  [_] = meck:unload(),
   ok.
 
 -spec push_notification_timeout(config()) -> ok.

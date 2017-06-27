@@ -228,6 +228,11 @@ We can use this token for an entire hour, after that we will receive something l
  [{<<"reason">>,<<"ExpiredProviderToken">>}]}
 ```
 
+## Pushing notifications
+
+*NOTE* in order to push notifications, in both ways, we _must_ call `apns:push_notification/3,4` and `apns:push_notification_token/4,5` from the same
+process which created the connection. If we try to do it from a different one we will get an error `{error, not_connection_owner}`.
+
 ## Reconnection
 
 If something unexpected happens and the `chatterbox` connection with APNs crashes `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
