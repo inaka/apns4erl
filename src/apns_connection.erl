@@ -61,8 +61,9 @@
 -type path()         :: string().
 -type notification() :: binary().
 -type type()         :: certdata | cert | token.
--type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' | 'PrivateKeyInfo'
-                        ,binary()}.
+-type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
+                         'PrivateKeyInfo'
+                        , binary()}.
 -type connection()   :: #{ name       := name()
                          , apple_host := host()
                          , apple_port := inet:port_number()
