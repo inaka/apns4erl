@@ -7,6 +7,7 @@
         ]).
 
 -export([ default_connection/1
+        , certdata_keydata_connection/1
         , connect/1
         , connect_without_name/1
         , http2_connection_lost/1
@@ -26,6 +27,7 @@
 
 -spec all() -> [atom()].
 all() ->  [ default_connection
+          , certdata_keydata_connection
           , connect
           , connect_without_name
           , http2_connection_lost
@@ -77,6 +79,24 @@ default_connection(_Config) ->
   token = apns_connection:type(DefaultConnection2),
   ok.
 
+-spec certdata_keydata_connection(config()) -> ok.
+certdata_keydata_connection(_Config) ->
+  ConnectionName = my_connection2,
+  {ok, Host} = application:get_env(apns, apple_host),
+  {ok, Port} = application:get_env(apns, apple_port),
+  {ok, Certdata} = application:get_env(apns, certdata),
+  {ok, Keydata} = application:get_env(apns, keydata),
+
+  % certdata type connection
+  DefaultConnection = apns_connection:default_connection(certdata, ConnectionName),
+  ConnectionName = apns_connection:name(DefaultConnection),
+  Host = apns_connection:host(DefaultConnection),
+  Port = apns_connection:port(DefaultConnection),
+  Certdata = apns_connection:certdata(DefaultConnection),
+  Keydata = apns_connection:keydata(DefaultConnection),
+  certdata = apns_connection:type(DefaultConnection),
+  ok.
+
 -spec connect(config()) -> ok.
 connect(_Config) ->
   ok = mock_open_http2_connection(),
@@ -101,7 +121,7 @@ connect_without_name(_Config) ->
 -spec http2_connection_lost(config()) -> ok.
 http2_connection_lost(_Config) ->
   ok = mock_open_http2_connection(),
-  ConnectionName = my_connection2,
+  ConnectionName = my_connection3,
   {ok, ServerPid}  = apns:connect(cert, ConnectionName),
 
   HTTP2Conn = apns_connection:http2_connection(ConnectionName),
@@ -120,7 +140,7 @@ http2_connection_lost(_Config) ->
   % Repeat with ceiling 0, for testing coverage
   ok = application:set_env(apns, backoff_ceiling, 0),
 
-  ConnectionName2 = my_connection3,
+  ConnectionName2 = my_connection4,
   {ok, ServerPid2}  = apns:connect(cert, ConnectionName2),
   HTTP2Conn3 = apns_connection:http2_connection(ConnectionName2),
   true = is_process_alive(HTTP2Conn3),
