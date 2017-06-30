@@ -27,9 +27,9 @@
         , name/1
         , host/1
         , port/1
-        , cert/1
+        , certdata/1
         , certfile/1
-        , key/1
+        , keydata/1
         , keyfile/1
         , type/1
         , http2_connection/1
@@ -278,16 +278,16 @@ host(#{apple_host := Host}) ->
 port(#{apple_port := Port}) ->
   Port.
 
--spec cert(connection()) -> binary().
-cert(#{certdata := Cert}) ->
+-spec certdata(connection()) -> binary().
+certdata(#{certdata := Cert}) ->
   Cert.
 
 -spec certfile(connection()) -> path().
 certfile(#{certfile := Certfile}) ->
   Certfile.
 
--spec key(connection()) -> keydata().
-key(#{keydata := Key}) ->
+-spec keydata(connection()) -> keydata().
+keydata(#{keydata := Key}) ->
   Key.
 
 -spec keyfile(connection()) -> path().
@@ -308,8 +308,8 @@ open_http2_connection(Connection) ->
 
   TransportOpts = case type(Connection) of
     certdata ->
-      Cert = cert(Connection),
-      Key = key(Connection),
+      Cert = certdata(Connection),
+      Key = keydata(Connection),
       [{cert, Cert}, {key, Key}];
     cert ->
       Certfile = certfile(Connection),
