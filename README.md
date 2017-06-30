@@ -25,6 +25,10 @@ And you can check all of our open-source projects at [inaka.github.io](http://in
 - You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
 - Erlang R19+
 
+## Important Links
+
+- [Pool of connections Example](examples/apns_pool/README.md)
+
 ## How to use it?
 
 First we have to fill our `config` data. There are two ways for do this, one is filling a `config` file. This is an example you can find at `test/test.config`:
