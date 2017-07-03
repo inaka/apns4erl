@@ -1,0 +1,20 @@
+{"1.1.0",
+[{<<"apns">>,{pkg,<<"apns4erl">>,<<"2.1.1">>},0},
+ {<<"base64url">>,{pkg,<<"base64url">>,<<"0.0.1">>},1},
+ {<<"chatterbox">>,{pkg,<<"chatterbox">>,<<"0.4.2">>},1},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},3},
+ {<<"hpack">>,{pkg,<<"hpack_erl">>,<<"0.2.3">>},2},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.1">>},1},
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},2},
+ {<<"worker_pool">>,{pkg,<<"worker_pool">>,<<"2.2.3">>},0}]}.
+[
+{pkg_hash,[
+ {<<"apns">>, <<"D2F851C803DC546212FEBB6F23EB40DBF86539864F7DB0FB8304DFC1C1F1384B">>},
+ {<<"base64url">>, <<"36A90125F5948E3AFD7BE97662A1504B934DD5DAC78451CA6E9ABF85A10286BE">>},
+ {<<"chatterbox">>, <<"BA68296FA79F0CA31139713C688C350A26C8844E1244F1736D7845C1C72E5F87">>},
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
+ {<<"hpack">>, <<"17670F83FF984AE6CD74B1C456EDDE906D27FF013740EE4D9EFAA4F1BF999633">>},
+ {<<"jsx">>, <<"1453B4EB3615ACB3E2CD0A105D27E6761E2ED2E501AC0B390F5BBEC497669846">>},
+ {<<"lager">>, <<"A6DEB74DAE7927F46BD13255268308EF03EB206EC784A94EAF7C1C0F3B811615">>},
+ {<<"worker_pool">>, <<"2CD7B2C289B900940297D283922D7E119C540CB8F29B5254639ABB9BFB100CAE">>}]}
+].
