@@ -1,5 +1,5 @@
 
-Apns4erl v2
+Apns4erl v2 [![Build Status](https://travis-ci.org/inaka/apns4erl.svg?branch=master)](https://travis-ci.org/inaka/apns4erl)
 ========
 
 <img src="https://media.giphy.com/media/uZQP0PR0BmkGA/giphy.gif" align="right" style="float:right" height="400" />
