@@ -72,7 +72,7 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
  }.
 ```
 
-APNs allows two connection types, one is using `Provider Certificates`. If you want to use that way make sure you fill the `certfile` and `keyfile`. Those are paths to the `Provider Certificated` and the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
+APNs allows two connection types, one is using `Provider Certificates`. The first certificate option is to supply cert paths in `certfile` and `keyfile`. Alternatively, you can supply a cert binary in `certdata` and a `keydata()`-type tuple (see: https://github.com/inaka/apns4erl/blob/master/src/apns_connection.erl#L64) in `keydata`. Certs are the `Provider Certificates` and the keys are the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
 
 The other way to connect against APNs is using `Provider Authentication Tokens`, for this choice you must fill the field `token_keyfile`. This is a path to the Authentication Key provided by Apple. This is in `.p8` format and it doesn't need conversion.
 
@@ -101,13 +101,15 @@ After running `apns4erl` app we can start creating connections. As we mentioned 
   #{ name       := name()
    , apple_host := host()
    , apple_port := inet:port_number()
+   , certdata   => binary()
    , certfile   => path()
+   , keydata    => keydata()
    , keyfile    => path()
    , timeout    => integer()
    , type       := type()
    }.
   ```
-  where the `type` field indicates if is `cert` or `token`.
+  where the `type` field indicates if is `certdata`, `cert`, or `token`.
 
 - `apns:connect/2`: The first argument is the type and the second one is the connection's name. In order to use it successfully we have to fill the `config` file before, as explained in `how to use it?` section.
 

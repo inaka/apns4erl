@@ -27,7 +27,9 @@
         , name/1
         , host/1
         , port/1
+        , certdata/1
         , certfile/1
+        , keydata/1
         , keyfile/1
         , type/1
         , http2_connection/1
@@ -58,11 +60,16 @@
 -type host()         :: string() | inet:ip_address().
 -type path()         :: string().
 -type notification() :: binary().
--type type()         :: cert | token.
+-type type()         :: certdata | cert | token.
+-type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
+                         'PrivateKeyInfo'
+                        , binary()}.
 -type connection()   :: #{ name       := name()
                          , apple_host := host()
                          , apple_port := inet:port_number()
+                         , certdata   => binary()
                          , certfile   => path()
+                         , keydata    => keydata()
                          , keyfile    => path()
                          , timeout    => integer()
                          , type       := type()
@@ -90,6 +97,21 @@ start_link(Connection, Client) ->
 
 %% @doc Builds a connection() map from the environment variables.
 -spec default_connection(type(), name()) -> connection().
+default_connection(certdata, ConnectionName) ->
+  {ok, Host} = application:get_env(apns, apple_host),
+  {ok, Port} = application:get_env(apns, apple_port),
+  {ok, Cert} = application:get_env(apns, certdata),
+  {ok, Key} = application:get_env(apns, keydata),
+  {ok, Timeout} = application:get_env(apns, timeout),
+
+  #{ name       => ConnectionName
+   , apple_host => Host
+   , apple_port => Port
+   , certdata   => Cert
+   , keydata    => Key
+   , timeout    => Timeout
+   , type       => certdata
+  };
 default_connection(cert, ConnectionName) ->
   {ok, Host} = application:get_env(apns, apple_host),
   {ok, Port} = application:get_env(apns, apple_port),
@@ -256,9 +278,17 @@ host(#{apple_host := Host}) ->
 port(#{apple_port := Port}) ->
   Port.
 
+-spec certdata(connection()) -> binary().
+certdata(#{certdata := Cert}) ->
+  Cert.
+
 -spec certfile(connection()) -> path().
 certfile(#{certfile := Certfile}) ->
   Certfile.
+
+-spec keydata(connection()) -> keydata().
+keydata(#{keydata := Key}) ->
+  Key.
 
 -spec keyfile(connection()) -> path().
 keyfile(#{keyfile := Keyfile}) ->
@@ -277,6 +307,10 @@ open_http2_connection(Connection) ->
   Host = host(Connection),
 
   TransportOpts = case type(Connection) of
+    certdata ->
+      Cert = certdata(Connection),
+      Key = keydata(Connection),
+      [{cert, Cert}, {key, Key}];
     cert ->
       Certfile = certfile(Connection),
       Keyfile = keyfile(Connection),
