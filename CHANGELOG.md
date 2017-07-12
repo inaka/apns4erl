@@ -1,14 +1,36 @@
 # Change Log
 
+## [2.2.0](https://github.com/inaka/apns4erl/tree/2.2.0) (2017-07-12)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.1.1...2.2.0)
+
+**Closed issues:**
+
+- Add Travis [\#193](https://github.com/inaka/apns4erl/issues/193)
+- Write an example with a pool of connections [\#191](https://github.com/inaka/apns4erl/issues/191)
+- restrict calls to push\_notification and push\_notification\_token [\#188](https://github.com/inaka/apns4erl/issues/188)
+- gen\_server push\_notification return {Timeout, StreamId} [\#182](https://github.com/inaka/apns4erl/issues/182)
+- Base64 newline characters [\#180](https://github.com/inaka/apns4erl/issues/180)
+- Full Library Revamp [\#84](https://github.com/inaka/apns4erl/issues/84)
+
+**Merged pull requests:**
+
+- Allow binary cert/key in apns\_connection like v1 [\#195](https://github.com/inaka/apns4erl/pull/195) ([danielfinke](https://github.com/danielfinke))
+- \[\#193\] Setting Travis up [\#194](https://github.com/inaka/apns4erl/pull/194) ([ferigis](https://github.com/ferigis))
+- \[\#191\] Example with a pool of connections [\#192](https://github.com/inaka/apns4erl/pull/192) ([ferigis](https://github.com/ferigis))
+- Fix: remove occasional newline characters in base64 output [\#190](https://github.com/inaka/apns4erl/pull/190) ([dgtony](https://github.com/dgtony))
+- \[\#188\] restricting push only for connection's owner process [\#189](https://github.com/inaka/apns4erl/pull/189) ([ferigis](https://github.com/ferigis))
+
 ## [2.1.1](https://github.com/inaka/apns4erl/tree/2.1.1) (2017-06-22)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/2.1.0...2.1.1)
 
 **Closed issues:**
 
+- Version Bump to 2.1.1 [\#186](https://github.com/inaka/apns4erl/issues/186)
 - Create connections without name [\#183](https://github.com/inaka/apns4erl/issues/183)
 
 **Merged pull requests:**
 
+- \[\#186\] Version Bump to 2.1.1 [\#187](https://github.com/inaka/apns4erl/pull/187) ([ferigis](https://github.com/ferigis))
 - \[\#183\] create connections without name [\#185](https://github.com/inaka/apns4erl/pull/185) ([ferigis](https://github.com/ferigis))
 - fixing hex package [\#179](https://github.com/inaka/apns4erl/pull/179) ([ferigis](https://github.com/ferigis))
 
