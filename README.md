@@ -1,5 +1,5 @@
 
-Apns4erl v2
+Apns4erl v2 [![Build Status](https://travis-ci.org/inaka/apns4erl.svg?branch=master)](https://travis-ci.org/inaka/apns4erl)
 ========
 
 <img src="https://media.giphy.com/media/uZQP0PR0BmkGA/giphy.gif" align="right" style="float:right" height="400" />
@@ -24,6 +24,10 @@ And you can check all of our open-source projects at [inaka.github.io](http://in
 ## Requirements
 - You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
 - Erlang R19+
+
+## Important Links
+
+- [Pool of connections Example](examples/apns_pool/README.md)
 
 ## How to use it?
 
@@ -68,7 +72,7 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
  }.
 ```
 
-APNs allows two connection types, one is using `Provider Certificates`. If you want to use that way make sure you fill the `certfile` and `keyfile`. Those are paths to the `Provider Certificated` and the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
+APNs allows two connection types, one is using `Provider Certificates`. The first certificate option is to supply cert paths in `certfile` and `keyfile`. Alternatively, you can supply a cert binary in `certdata` and a `keydata()`-type tuple (see: https://github.com/inaka/apns4erl/blob/master/src/apns_connection.erl#L64) in `keydata`. Certs are the `Provider Certificates` and the keys are the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
 
 The other way to connect against APNs is using `Provider Authentication Tokens`, for this choice you must fill the field `token_keyfile`. This is a path to the Authentication Key provided by Apple. This is in `.p8` format and it doesn't need conversion.
 
@@ -97,13 +101,15 @@ After running `apns4erl` app we can start creating connections. As we mentioned 
   #{ name       := name()
    , apple_host := host()
    , apple_port := inet:port_number()
+   , certdata   => binary()
    , certfile   => path()
+   , keydata    => keydata()
    , keyfile    => path()
    , timeout    => integer()
    , type       := type()
    }.
   ```
-  where the `type` field indicates if is `cert` or `token`.
+  where the `type` field indicates if is `certdata`, `cert`, or `token`.
 
 - `apns:connect/2`: The first argument is the type and the second one is the connection's name. In order to use it successfully we have to fill the `config` file before, as explained in `how to use it?` section.
 
@@ -112,20 +118,34 @@ Example:
 ```erlang
 1> apns:connect(cert, my_first_connection).
 {ok,<0.87.0>}
-2> apns:connect(#{name => another_cert, apple_host => "api.push.apple.com", apple_host => 443,
-certtile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
+2> apns:connect(#{name => another_cert, apple_host => "api.push.apple.com", apple_port => 443,
+certfile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.95.0>}
 ```
 Note `cert` and `token` define the type we want.
 
-Although `Apns4erl` is supervising the connections `apns:connect/2` returns the connection `pid` just in case you want to monitor it.
+`apns:connect/2` returns the connection `pid`.
+
+## Create Connections without name
+
+In some scenarios we don't want to assign names to the connections instead we want working just with the `pid` (working with a pool of connections for example). If that is the case we use the same `apns:connect/1` and `apns:connect/2` functions but instead of a connection name we put `undefined`:
+
+```erlang
+1> apns:connect(cert, undefined).
+{ok,<0.127.0>}
+2> apns:connect(#{name => undefined, apple_host => "api.push.apple.com", apple_port => 443,
+certfile => "priv/cert2.pem", keyfile => "priv/key2-noenc.pem", type => cert}).
+{ok,<0.130.0>}
+3> apns:connect(token, my_second_connection).
+{ok,<0.132.0>}
+```
 
 ## Push Notifications over `Provider Certificate` connections
 
 In order to send Notifications over `Provider Certificate` connection we will use `apns:push_notification/3,4`.
 
-We will need the connection, a notification, the device ID and some http2 headers. The connection is the `atom` we used when we executed `apns:connect/2` for setting a name, the device ID is provided by Apple, the notification is a `map` with the data we want to send, that map will be encoded to json later and the http2 headers can be explicitly sent as a parameter using `apns:push_notification/4` or can be defined at the `config` file, in that case we would use `apns:push_notification/3`.
+We will need the connection, a notification, the device ID and some http2 headers. The connection is the `atom` we used when we executed `apns:connect/2` for setting a name or its `pid`, the device ID is provided by Apple, the notification is a `map` with the data we want to send, that map will be encoded to json later and the http2 headers can be explicitly sent as a parameter using `apns:push_notification/4` or can be defined at the `config` file, in that case we would use `apns:push_notification/3`.
 
 This is the `headers` format:
 
@@ -144,7 +164,7 @@ All of them are defined by Apple  [here](https://developer.apple.com/library/con
 Lets send a Notification.
 
 ```erlang
-1> apns:connect(cert, my_first_connection).
+1> {ok, Pid} = apns:connect(cert, my_first_connection).
 {ok,<0.85.0>}
 2> DeviceId = <<"a0dc63fb059cb9c13b03e5c974af3dd33d67fed4147da8c5ada0626439e18935">>.
 <<"a0dc63fb059cb9c13b03e5c974af3dd33d67fed4147da8c5ada0626439e18935">>
@@ -153,6 +173,10 @@ Lets send a Notification.
 4> apns:push_notification(my_first_connection, DeviceId, Notification).
 {200,
  [{<<"apns-id">>,<<"EFDE0D9D-F60C-30F4-3FF1-86F3B90BE434">>}],
+ no_body}
+5> apns:push_notification(Pid, DeviceId, Notification).
+{200,
+ [{<<"apns-id">>,<<"EFDE0D9D-F60C-30F4-3FF1-86F3B90BE654">>}],
  no_body}
 ```
 
@@ -210,6 +234,11 @@ We can use this token for an entire hour, after that we will receive something l
  [{<<"reason">>,<<"ExpiredProviderToken">>}]}
 ```
 
+## Pushing notifications
+
+*NOTE* in order to push notifications, in both ways, we _must_ call `apns:push_notification/3,4` and `apns:push_notification_token/4,5` from the same
+process which created the connection. If we try to do it from a different one we will get an error `{error, not_connection_owner}`.
+
 ## Reconnection
 
 If something unexpected happens and the `chatterbox` connection with APNs crashes `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
@@ -239,7 +268,7 @@ You should check your client inbox after a timeout but it is not guaranteed your
 
 Apple recommends us to keep our connections open and avoid opening and closing very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.
 
-But when closing a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name. After using it the name will be available for new connections again.
+But when closing a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name or the connection's `pid`. After using it the name will be available for new connections again (if it was different than `undefined`).
 
 ## Feedback
 

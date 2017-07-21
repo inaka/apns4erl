@@ -27,7 +27,9 @@
         , name/1
         , host/1
         , port/1
+        , certdata/1
         , certfile/1
+        , keydata/1
         , keyfile/1
         , type/1
         , http2_connection/1
@@ -58,11 +60,16 @@
 -type host()         :: string() | inet:ip_address().
 -type path()         :: string().
 -type notification() :: binary().
--type type()         :: cert | token.
+-type type()         :: certdata | cert | token.
+-type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
+                         'PrivateKeyInfo'
+                        , binary()}.
 -type connection()   :: #{ name       := name()
                          , apple_host := host()
                          , apple_port := inet:port_number()
+                         , certdata   => binary()
                          , certfile   => path()
+                         , keydata    => keydata()
                          , keyfile    => path()
                          , timeout    => integer()
                          , type       := type()
@@ -82,12 +89,29 @@
 %% @doc starts the gen_server
 -spec start_link(connection(), pid()) ->
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+start_link(#{name := undefined} = Connection, Client) ->
+  gen_server:start_link(?MODULE, {Connection, Client}, []);
 start_link(Connection, Client) ->
   Name = name(Connection),
   gen_server:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
 
 %% @doc Builds a connection() map from the environment variables.
 -spec default_connection(type(), name()) -> connection().
+default_connection(certdata, ConnectionName) ->
+  {ok, Host} = application:get_env(apns, apple_host),
+  {ok, Port} = application:get_env(apns, apple_port),
+  {ok, Cert} = application:get_env(apns, certdata),
+  {ok, Key} = application:get_env(apns, keydata),
+  {ok, Timeout} = application:get_env(apns, timeout),
+
+  #{ name       => ConnectionName
+   , apple_host => Host
+   , apple_port => Port
+   , certdata   => Cert
+   , keydata    => Key
+   , timeout    => Timeout
+   , type       => certdata
+  };
 default_connection(cert, ConnectionName) ->
   {ok, Host} = application:get_env(apns, apple_host),
   {ok, Port} = application:get_env(apns, apple_port),
@@ -116,35 +140,37 @@ default_connection(token, ConnectionName) ->
   }.
 
 %% @doc Close the connection with APNs gracefully
--spec close_connection(name()) -> ok.
-close_connection(ConnectionName) ->
-  gen_server:cast(ConnectionName, stop).
+-spec close_connection(name() | pid()) -> ok.
+close_connection(ConnectionId) ->
+  gen_server:cast(ConnectionId, stop).
 
 %% @doc Returns the http2's connection PID. This function is only used in tests.
--spec http2_connection(name()) -> pid().
-http2_connection(ConnectionName) ->
-  gen_server:call(ConnectionName, http2_connection).
+-spec http2_connection(name() | pid()) -> pid().
+http2_connection(ConnectionId) ->
+  gen_server:call(ConnectionId, http2_connection).
 
 %% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name()
+-spec push_notification( name() | pid()
                        , apns:device_id()
                        , notification()
-                       , apns:headers()) -> apns:response().
-push_notification(ConnectionName, DeviceId, Notification, Headers) ->
-  {Timeout, StreamId} =
-    gen_server:call(ConnectionName, {push_notification, DeviceId, Notification, Headers}),
-  wait_response(ConnectionName, Timeout, StreamId).
+                       , apns:headers()) -> apns:response() | {error, not_connection_owner}.
+push_notification(ConnectionId, DeviceId, Notification, Headers) ->
+  case gen_server:call(ConnectionId, {push_notification, DeviceId, Notification, Headers}) of
+    not_connection_owner -> {error, not_connection_owner};
+    {Timeout, StreamId}  -> wait_response(ConnectionId, Timeout, StreamId)
+  end.
 
 %% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name()
+-spec push_notification( name() | pid()
                        , apns:token()
                        , apns:device_id()
                        , notification()
-                       , apns:headers()) -> apns:response().
-push_notification(ConnectionName, Token, DeviceId, Notification, Headers) ->
-  {Timeout, StreamId} =
-    gen_server:call(ConnectionName, {push_notification, Token, DeviceId, Notification, Headers}),
-  wait_response(ConnectionName, Timeout, StreamId).
+                       , apns:headers()) -> apns:response() | {error, not_connection_owner}.
+push_notification(ConnectionId, Token, DeviceId, Notification, Headers) ->
+  case gen_server:call(ConnectionId, {push_notification, Token, DeviceId, Notification, Headers}) of
+    not_connection_owner -> {error, not_connection_owner};
+    {Timeout, StreamId}  -> wait_response(ConnectionId, Timeout, StreamId)
+  end.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -163,24 +189,28 @@ init({Connection, Client}) ->
         }}.
 
 -spec handle_call( Request :: term(), From :: {pid(), term()}, State) ->
-  {reply, ok, State}.
+  {reply, term(), State}.
 handle_call(http2_connection, _From, #{http2_connection := HTTP2Conn} = State) ->
   {reply, HTTP2Conn, State};
 handle_call( {push_notification, DeviceId, Notification, Headers}
-           , _From
-           , State) ->
+           , {From, _}
+           , #{client := From} = State) ->
   #{connection := Connection, http2_connection := HTTP2Conn} = State,
   #{timeout := Timeout} = Connection,
   StreamId = push(HTTP2Conn, DeviceId, Headers, Notification, Connection),
   {reply, {Timeout, StreamId}, State};
 handle_call( {push_notification, Token, DeviceId, Notification, HeadersMap}
-           , _From
-           , State) ->
+           , {From, _}
+           , #{client := From} = State) ->
   #{connection := Connection, http2_connection := HTTP2Conn} = State,
   Headers = add_authorization_header(HeadersMap, Token),
   #{timeout := Timeout} = Connection,
   StreamId = push(HTTP2Conn, DeviceId, Headers, Notification, Connection),
   {reply, {Timeout, StreamId}, State};
+handle_call( {push_notification, _, _, _}, _From, State) ->
+  {reply, not_connection_owner, State};
+handle_call( {push_notification, _, _, _, _}, _From, State) ->
+  {reply, not_connection_owner, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -248,9 +278,17 @@ host(#{apple_host := Host}) ->
 port(#{apple_port := Port}) ->
   Port.
 
+-spec certdata(connection()) -> binary().
+certdata(#{certdata := Cert}) ->
+  Cert.
+
 -spec certfile(connection()) -> path().
 certfile(#{certfile := Certfile}) ->
   Certfile.
+
+-spec keydata(connection()) -> keydata().
+keydata(#{keydata := Key}) ->
+  Key.
 
 -spec keyfile(connection()) -> path().
 keyfile(#{keyfile := Keyfile}) ->
@@ -269,6 +307,10 @@ open_http2_connection(Connection) ->
   Host = host(Connection),
 
   TransportOpts = case type(Connection) of
+    certdata ->
+      Cert = certdata(Connection),
+      Key = keydata(Connection),
+      [{cert, Cert}, {key, Key}];
     cert ->
       Certfile = certfile(Connection),
       Keyfile = keyfile(Connection),
@@ -333,11 +375,13 @@ normalize_response_body([]) ->
 normalize_response_body([ResponseBody]) ->
   jsx:decode(ResponseBody).
 
--spec wait_response(name(), integer(), integer()) -> apns:response().
-wait_response(ConnectionName, Timeout, StreamID) ->
-  Server = whereis(ConnectionName),
+-spec wait_response(name() | pid(), integer(), integer()) -> apns:response().
+wait_response(ConnectionId, Timeout, StreamID) when is_atom(ConnectionId) ->
+  Server = whereis(ConnectionId),
+  wait_response(Server, Timeout, StreamID);
+wait_response(ConnectionId, Timeout, StreamID) when is_pid(ConnectionId) ->
   receive
-    {apns_response, Server, StreamID, Response} -> Response
+    {apns_response, ConnectionId, StreamID, Response} -> Response
   after
     Timeout -> {timeout, StreamID}
   end.

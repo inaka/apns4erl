@@ -1,0 +1,13 @@
+{application, apns_pool, [
+  {description, "pool of connections with apns4erl"},
+  {vsn, "0.0.1"},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib,
+    apns,
+    worker_pool
+  ]},
+  {modules, []},
+  {mod, {apns_pool, []}}
+]}.

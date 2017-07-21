@@ -7,11 +7,14 @@
         ]).
 
 -export([ default_connection/1
+        , certdata_keydata_connection/1
         , connect/1
+        , connect_without_name/1
         , http2_connection_lost/1
         , push_notification/1
         , push_notification_token/1
         , push_notification_timeout/1
+        , restrict_calls_to_owner/1
         , default_headers/1
         , test_coverage/1
         ]).
@@ -24,11 +27,14 @@
 
 -spec all() -> [atom()].
 all() ->  [ default_connection
+          , certdata_keydata_connection
           , connect
+          , connect_without_name
           , http2_connection_lost
           , push_notification
           , push_notification_token
           , push_notification_timeout
+          , restrict_calls_to_owner
           , default_headers
           , test_coverage
           ].
@@ -73,6 +79,24 @@ default_connection(_Config) ->
   token = apns_connection:type(DefaultConnection2),
   ok.
 
+-spec certdata_keydata_connection(config()) -> ok.
+certdata_keydata_connection(_Config) ->
+  ConnectionName = my_connection2,
+  {ok, Host} = application:get_env(apns, apple_host),
+  {ok, Port} = application:get_env(apns, apple_port),
+  {ok, Certdata} = application:get_env(apns, certdata),
+  {ok, Keydata} = application:get_env(apns, keydata),
+
+  % certdata type connection
+  DefaultConnection = apns_connection:default_connection(certdata, ConnectionName),
+  ConnectionName = apns_connection:name(DefaultConnection),
+  Host = apns_connection:host(DefaultConnection),
+  Port = apns_connection:port(DefaultConnection),
+  Certdata = apns_connection:certdata(DefaultConnection),
+  Keydata = apns_connection:keydata(DefaultConnection),
+  certdata = apns_connection:type(DefaultConnection),
+  ok.
+
 -spec connect(config()) -> ok.
 connect(_Config) ->
   ok = mock_open_http2_connection(),
@@ -84,12 +108,25 @@ connect(_Config) ->
   [_] = meck:unload(),
   ok.
 
+-spec connect_without_name(config()) -> ok.
+connect_without_name(_Config) ->
+  ok = mock_open_http2_connection(),
+  ConnectionName = undefined,
+  {ok, ServerPid}  = apns:connect(cert, ConnectionName),
+  true = is_process_alive(ServerPid),
+  ok = close_connection(ServerPid),
+  [_] = meck:unload(),
+  ok.
+
 -spec http2_connection_lost(config()) -> ok.
 http2_connection_lost(_Config) ->
   ok = mock_open_http2_connection(),
-  ConnectionName = my_connection2,
+  ConnectionName = my_connection3,
   {ok, ServerPid}  = apns:connect(cert, ConnectionName),
+
   HTTP2Conn = apns_connection:http2_connection(ConnectionName),
+  HTTP2Conn = apns_connection:http2_connection(ServerPid),
+
   true = is_process_alive(HTTP2Conn),
   HTTP2Conn ! {crash, ServerPid},
   ktn_task:wait_for(fun() -> is_process_alive(HTTP2Conn) end, false),
@@ -103,7 +140,7 @@ http2_connection_lost(_Config) ->
   % Repeat with ceiling 0, for testing coverage
   ok = application:set_env(apns, backoff_ceiling, 0),
 
-  ConnectionName2 = my_connection3,
+  ConnectionName2 = my_connection4,
   {ok, ServerPid2}  = apns:connect(cert, ConnectionName2),
   HTTP2Conn3 = apns_connection:http2_connection(ConnectionName2),
   true = is_process_alive(HTTP2Conn3),
@@ -127,7 +164,7 @@ http2_connection_lost(_Config) ->
 push_notification(_Config) ->
   ok = mock_open_http2_connection(),
   ConnectionName = my_connection,
-  {ok, _ApnsPid} = apns:connect(cert, ConnectionName),
+  {ok, ServerPid} = apns:connect(cert, ConnectionName),
   Headers = #{ apns_id          => <<"apnsid">>
              , apns_expiration  => <<"0">>
              , apns_priority    => <<"10">>
@@ -150,8 +187,11 @@ push_notification(_Config) ->
 
   ok = mock_http2_get_response(ErrorCode, ErrorHeaders, ErrorBody),
 
-  {ErrorCode, ErrorHeaders, _ErrorBodyDecoded} =
+  {ErrorCode, ErrorHeaders, ErrorBodyDecoded} =
     apns:push_notification(ConnectionName, DeviceId, Notification),
+  {ErrorCode, ErrorHeaders, ErrorBodyDecoded} =
+    apns:push_notification(ServerPid, DeviceId, Notification),
+
   ok = close_connection(ConnectionName),
   [_] = meck:unload(),
   ok.
@@ -160,7 +200,7 @@ push_notification(_Config) ->
 push_notification_token(_Config) ->
   ok = mock_open_http2_connection(),
   ConnectionName = my_token_connection,
-  {ok, _ApnsPid} = apns:connect(token, ConnectionName),
+  {ok, ServerPid} = apns:connect(token, ConnectionName),
   Headers = #{ apns_id          => <<"apnsid2">>
              , apns_expiration  => <<"0">>
              , apns_priority    => <<"10">>
@@ -182,6 +222,13 @@ push_notification_token(_Config) ->
                                 , Notification
                                 , Headers
                                 ),
+  {ResponseCode, ResponseHeaders, _Body} =
+    apns:push_notification_token( ServerPid
+                                , Token
+                                , DeviceId
+                                , Notification
+                                , Headers
+                                ),
   {ResponseCode, ResponseHeaders, no_body} =
     apns:push_notification_token( ConnectionName
                                 , Token
@@ -189,8 +236,31 @@ push_notification_token(_Config) ->
                                 , Notification
                                 ),
 
-  ok = close_connection(ConnectionName),
+  ok = close_connection(ServerPid),
   _ = meck:unload(),
+  ok.
+
+-spec restrict_calls_to_owner(config()) -> ok.
+restrict_calls_to_owner(_Config) ->
+  ok = mock_open_http2_connection(),
+  ok = mock_http2_post(),
+  Self = self(),
+
+  SpawnedPid = spawn(fun() ->
+    {ok, Pid} = apns:connect(cert, undefined),
+    Self ! {self(), Pid}
+  end),
+
+  ConnectionPid = receive
+    {SpawnedPid, ServerPid} -> ServerPid
+  end,
+
+  {error, not_connection_owner} = apns:push_notification(ConnectionPid, <<"device_id">>, #{}, #{}),
+  {error, not_connection_owner} =
+    apns:push_notification_token(ConnectionPid, <<"token">>, <<"device_id">>, #{}, #{}),
+
+  ok = close_connection(ConnectionPid),
+  [_] = meck:unload(),
   ok.
 
 -spec push_notification_timeout(config()) -> ok.
@@ -305,9 +375,12 @@ maybe_mock_apns_os() ->
     {0, "12345678"}
   end).
 
-close_connection(ConnectionName) ->
-  ok = apns:close_connection(ConnectionName),
+close_connection(ConnectionId) when is_atom(ConnectionId) ->
+  ConnectionPid = whereis(ConnectionId),
+  close_connection(ConnectionPid);
+close_connection(ConnectionId) when is_pid(ConnectionId) ->
+  ok = apns:close_connection(ConnectionId),
   ktn_task:wait_for(fun() ->
-      is_process_alive(whereis(ConnectionName))
+      is_process_alive(ConnectionId)
     end, false),
   ok.
