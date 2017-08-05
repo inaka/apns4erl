@@ -26,11 +26,11 @@
 
 -type feedback()        :: {calendar:datetime(), string()}.
 -type socket()          :: gen_tcp:socket().
--type feedback_config() :: #{ host     := string()
-                            , port     := pos_integer()
-                            , certfile := string()
+-type feedback_config() :: #{ host     => string()
+                            , port     => pos_integer()
+                            , certfile => string()
                             , keyfile  => string()
-                            , timeout  := pos_integer()
+                            , timeout  => pos_integer()
                             }.
 
 %%%===================================================================

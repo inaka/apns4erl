@@ -64,22 +64,22 @@
 -type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
                          'PrivateKeyInfo'
                         , binary()}.
--type connection()   :: #{ name       := name()
-                         , apple_host := host()
-                         , apple_port := inet:port_number()
+-type connection()   :: #{ name       => name()
+                         , apple_host => host()
+                         , apple_port => inet:port_number()
                          , certdata   => binary()
                          , certfile   => path()
                          , keydata    => keydata()
                          , keyfile    => path()
                          , timeout    => integer()
-                         , type       := type()
+                         , type       => type()
                          }.
 
--type state()        :: #{ connection       := connection()
-                         , http2_connection := pid()
-                         , client           := pid()
-                         , backoff          := non_neg_integer()
-                         , backoff_ceiling  := non_neg_integer()
+-type state()        :: #{ connection       => connection()
+                         , http2_connection => pid()
+                         , client           => pid()
+                         , backoff          => non_neg_integer()
+                         , backoff_ceiling  => non_neg_integer()
                          }.
 
 %%%===================================================================
