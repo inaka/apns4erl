@@ -35,9 +35,10 @@
 -spec sign(binary()) -> binary().
 sign(Data) ->
   {ok, KeyPath} = application:get_env(apns, token_keyfile),
+  {ok, Openssl} = application:get_env(apns, openssl_path),
   Command = "printf '" ++
             binary_to_list(Data) ++
-            "' | openssl dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
+            "' | " ++ Openssl ++ " dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
   {0, Result} = apns_os:cmd(Command),
   strip_b64(list_to_binary(Result)).
 
@@ -67,3 +68,4 @@ seconds_to_timestamp(Secs) ->
 -spec strip_b64(binary()) -> binary().
 strip_b64(BS) ->
   binary:list_to_bin(binary:split(BS, [<<"\n">>, <<"=">>], [global])).
+

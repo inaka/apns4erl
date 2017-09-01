@@ -13,6 +13,9 @@
   ]},
   {modules, []},
   {mod, {apns_app, []}},
+  {env, [
+      {openssl_path, "openssl"}
+  ]},
   {maintainers,["Inaka"]},
   {licenses,["Apache 2.0"]},
   {links,[{"Github","https://github.com/inaka/apns4erl"}]},
