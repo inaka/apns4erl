@@ -381,7 +381,10 @@ wait_response(ConnectionId, Timeout, StreamID) when is_atom(ConnectionId) ->
   wait_response(Server, Timeout, StreamID);
 wait_response(ConnectionId, Timeout, StreamID) when is_pid(ConnectionId) ->
   receive
-    {apns_response, ConnectionId, StreamID, Response} -> Response
+    {apns_response, ConnectionId, StreamID, Response} -> Response;
+    {reconnecting, ConnectionId} = ReConnect ->
+          self() ! ReConnect,
+          reconnecting
   after
     Timeout -> {timeout, StreamID}
   end.

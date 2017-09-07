@@ -49,7 +49,7 @@
 -type response()  :: { integer()          % HTTP2 Code
                      , [term()]           % Response Headers
                      , [term()] | no_body % Response Body
-                     } | {timeout, stream_id()}.
+                     } | {timeout, stream_id()} | reconnecting.
 -type token()     :: binary().
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
