@@ -14,7 +14,7 @@
   {modules, []},
   {mod, {apns_app, []}},
   {env, [
-      {openssl_path, "openssl"}
+      {openssl_command, "openssl"}
   ]},
   {maintainers,["Inaka"]},
   {licenses,["Apache 2.0"]},

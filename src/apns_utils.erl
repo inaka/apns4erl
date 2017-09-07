@@ -35,7 +35,7 @@
 -spec sign(binary()) -> binary().
 sign(Data) ->
   {ok, KeyPath} = application:get_env(apns, token_keyfile),
-  {ok, Openssl} = application:get_env(apns, openssl_path),
+  {ok, Openssl} = application:get_env(apns, openssl_command),
   Command = "printf '" ++
             binary_to_list(Data) ++
             "' | " ++ Openssl ++ " dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
