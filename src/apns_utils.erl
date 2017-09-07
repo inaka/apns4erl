@@ -36,9 +36,9 @@
 sign(Data) ->
   {ok, KeyPath} = application:get_env(apns, token_keyfile),
   {ok, Openssl} = application:get_env(apns, openssl_command),
-  Command = "printf '" ++
-            binary_to_list(Data) ++
-            "' | " ++ Openssl ++ " dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
+  Command = "printf '" ++ binary_to_list(Data) ++
+            "' | " ++ Openssl ++ " dgst -binary -sha256 -sign " ++
+            KeyPath ++ " | base64",
   {0, Result} = apns_os:cmd(Command),
   strip_b64(list_to_binary(Result)).
 
