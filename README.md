@@ -14,12 +14,7 @@ __Note:__ `Apns4erl v2` is still under development. Currently it supports push n
 
 Contact Us
 ==========
-For **questions** or **general comments** regarding the use of Apns4erl, please use our public
-[hipchat room](http://inaka.net/hipchat).
-
 If you find any **bugs** or have a **problem** while using Apns4erl, please [open an issue](https://github.com/inaka/apns4erl/issues/new) in this repo (or a pull request :)).
-
-And you can check all of our open-source projects at [inaka.github.io](http://inaka.github.io)
 
 ## Requirements
 - You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
