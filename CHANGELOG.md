@@ -1,10 +1,27 @@
 # Change Log
 
+## [2.2.1](https://github.com/inaka/apns4erl/tree/2.2.1) (2018-07-04)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.2.0...2.2.1)
+
+**Closed issues:**
+
+- Pseudo-header field ':method' found after regular header [\#211](https://github.com/inaka/apns4erl/issues/211)
+- Memory leaks may exist [\#206](https://github.com/inaka/apns4erl/issues/206)
+- chatterbox OPT20 gen\_fsm is deprecated and will be removed in a future release [\#184](https://github.com/inaka/apns4erl/issues/184)
+
+**Merged pull requests:**
+
+- send mandatory headers at top [\#212](https://github.com/inaka/apns4erl/pull/212) ([lazedo](https://github.com/lazedo))
+- Update from @andreabenini [\#210](https://github.com/inaka/apns4erl/pull/210) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Update README.md [\#204](https://github.com/inaka/apns4erl/pull/204) ([igaray](https://github.com/igaray))
+- add erlang 20 for test [\#200](https://github.com/inaka/apns4erl/pull/200) ([getong](https://github.com/getong))
+
 ## [2.2.0](https://github.com/inaka/apns4erl/tree/2.2.0) (2017-07-12)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/2.1.1...2.2.0)
 
 **Closed issues:**
 
+- Version Bump to 2.2.0 [\#196](https://github.com/inaka/apns4erl/issues/196)
 - Add Travis [\#193](https://github.com/inaka/apns4erl/issues/193)
 - Write an example with a pool of connections [\#191](https://github.com/inaka/apns4erl/issues/191)
 - restrict calls to push\_notification and push\_notification\_token [\#188](https://github.com/inaka/apns4erl/issues/188)
@@ -14,6 +31,7 @@
 
 **Merged pull requests:**
 
+- \[\#196\] Version Bump to 2.2.0 [\#197](https://github.com/inaka/apns4erl/pull/197) ([ferigis](https://github.com/ferigis))
 - Allow binary cert/key in apns\_connection like v1 [\#195](https://github.com/inaka/apns4erl/pull/195) ([danielfinke](https://github.com/danielfinke))
 - \[\#193\] Setting Travis up [\#194](https://github.com/inaka/apns4erl/pull/194) ([ferigis](https://github.com/ferigis))
 - \[\#191\] Example with a pool of connections [\#192](https://github.com/inaka/apns4erl/pull/192) ([ferigis](https://github.com/ferigis))
