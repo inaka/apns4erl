@@ -337,7 +337,7 @@ get_headers(DeviceId, Headers, Connection) ->
     end
   end,
   Headers2 = lists:flatmap(F, List),
-  lists:append(Headers2, mandatory_headers(DeviceId, Connection)).
+  lists:append(mandatory_headers(DeviceId, Connection), Headers2).
 
 -spec mandatory_headers(binary(), connection()) -> list().
 mandatory_headers(DeviceId, #{apple_host := Host, apple_port := Port}) ->
