@@ -8,7 +8,7 @@
     kernel,
     stdlib,
     jsx,
-    chatterbox,
+    gun,
     base64url
   ]},
   {modules, []},
