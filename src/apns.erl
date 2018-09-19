@@ -77,7 +77,7 @@ stop() ->
 
 %% @doc Connects to APNs service with Provider Certificate or Token
 -spec connect( apns_connection:type(), apns_connection:name()) ->
-  {ok, pid()} | {error, timeout}.
+  {ok, pid()}.
 connect(Type, ConnectionName) ->
   DefaultConnection = apns_connection:default_connection(Type, ConnectionName),
   connect(DefaultConnection).
@@ -88,7 +88,7 @@ connect(Connection) ->
   apns_sup:create_connection(Connection).
 
 %% @doc Wait for the APNs connection to be up.
--spec wait_for_connection_up(pid()) -> ok | {error, timeout}.
+-spec wait_for_connection_up(pid()) -> ok.
 wait_for_connection_up(Server) ->
   apns_connection:wait_apns_connection_up(Server).
 
