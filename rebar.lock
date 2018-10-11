@@ -1,12 +1,12 @@
 {"1.1.0",
 [{<<"base64url">>,{pkg,<<"base64url">>,<<"0.0.1">>},0},
- {<<"chatterbox">>,{pkg,<<"chatterbox">>,<<"0.7.0">>},0},
- {<<"hpack">>,{pkg,<<"hpack_erl">>,<<"0.2.3">>},1},
+ {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.6.0">>},1},
+ {<<"gun">>,{pkg,<<"gun">>,<<"1.3.0">>},0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0}]}.
 [
 {pkg_hash,[
  {<<"base64url">>, <<"36A90125F5948E3AFD7BE97662A1504B934DD5DAC78451CA6E9ABF85A10286BE">>},
- {<<"chatterbox">>, <<"8036197E00C42B3AC401DABDA722FD211071B27CBD59A7CEA471185F5D1F573A">>},
- {<<"hpack">>, <<"17670F83FF984AE6CD74B1C456EDDE906D27FF013740EE4D9EFAA4F1BF999633">>},
+ {<<"cowlib">>, <<"8AA629F81A0FC189F261DC98A42243FA842625FEEA3C7EC56C48F4CCDB55490F">>},
+ {<<"gun">>, <<"18E5D269649C987AF95AEC309F68A27FFC3930531DD227A6EAA0884D6684286E">>},
  {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>}]}
 ].

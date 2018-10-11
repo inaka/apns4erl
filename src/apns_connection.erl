@@ -1,4 +1,4 @@
-%%% @doc This gen_server handles the APNs Connection.
+%%% @doc This gen_statem handles the APNs Connection.
 %%%
 %%% Copyright 2017 Erlang Solutions Ltd.
 %%%
@@ -19,7 +19,7 @@
 -module(apns_connection).
 -author("Felipe Ripoll <felipe@inakanetworks.com>").
 
--behaviour(gen_server).
+-behaviour(gen_statem).
 
 %% API
 -export([ start_link/2
@@ -32,19 +32,26 @@
         , keydata/1
         , keyfile/1
         , type/1
-        , http2_connection/1
+        , gun_pid/1
         , close_connection/1
         , push_notification/4
         , push_notification/5
+        , wait_apns_connection_up/1
         ]).
 
-%% gen_server callbacks
+%% gen_statem callbacks
 -export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        , handle_info/2
-        , terminate/2
-        , code_change/3
+        , callback_mode/0
+        , open_connection/3
+        , open_origin/3
+        , open_proxy/3
+        , open_common/3
+        , await_up/3
+        , proxy_connect_to_origin/3
+        , await_tunnel_up/3
+        , connected/3
+        , down/3
+        , code_change/4
         ]).
 
 -export_type([ name/0
@@ -64,6 +71,12 @@
 -type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
                          'PrivateKeyInfo'
                         , binary()}.
+-type proxy_info()   :: #{ type       := connect
+                         , host       := host()
+                         , port       := inet:port_number()
+                         , username   => iodata()
+                         , password   => iodata()
+                         }.
 -type connection()   :: #{ name       := name()
                          , apple_host := host()
                          , apple_port := inet:port_number()
@@ -73,27 +86,30 @@
                          , keyfile    => path()
                          , timeout    => integer()
                          , type       := type()
+                         , proxy_info => proxy_info()
                          }.
 
--type state()        :: #{ connection       := connection()
-                         , http2_connection := pid()
-                         , client           := pid()
-                         , backoff          := non_neg_integer()
-                         , backoff_ceiling  := non_neg_integer()
+-type state()        :: #{ connection      := connection()
+                         , gun_pid         => pid()
+                         , gun_monitor     => reference()
+                         , gun_connect_ref => reference()
+                         , client          := pid()
+                         , backoff         := non_neg_integer()
+                         , backoff_ceiling := non_neg_integer()
                          }.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-%% @doc starts the gen_server
+%% @doc starts the gen_statem
 -spec start_link(connection(), pid()) ->
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
 start_link(#{name := undefined} = Connection, Client) ->
-  gen_server:start_link(?MODULE, {Connection, Client}, []);
+  gen_statem:start_link(?MODULE, {Connection, Client}, []);
 start_link(Connection, Client) ->
   Name = name(Connection),
-  gen_server:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
+  gen_statem:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
 
 %% @doc Builds a connection() map from the environment variables.
 -spec default_connection(type(), name()) -> connection().
@@ -142,12 +158,12 @@ default_connection(token, ConnectionName) ->
 %% @doc Close the connection with APNs gracefully
 -spec close_connection(name() | pid()) -> ok.
 close_connection(ConnectionId) ->
-  gen_server:cast(ConnectionId, stop).
+  gen_statem:cast(ConnectionId, stop).
 
-%% @doc Returns the http2's connection PID. This function is only used in tests.
--spec http2_connection(name() | pid()) -> pid().
-http2_connection(ConnectionId) ->
-  gen_server:call(ConnectionId, http2_connection).
+%% @doc Returns the gun's connection PID. This function is only used in tests.
+-spec gun_pid(name() | pid()) -> pid().
+gun_pid(ConnectionId) ->
+  gen_statem:call(ConnectionId, gun_pid).
 
 %% @doc Pushes notification to certificate APNs connection.
 -spec push_notification( name() | pid()
@@ -155,10 +171,7 @@ http2_connection(ConnectionId) ->
                        , notification()
                        , apns:headers()) -> apns:response() | {error, not_connection_owner}.
 push_notification(ConnectionId, DeviceId, Notification, Headers) ->
-  case gen_server:call(ConnectionId, {push_notification, DeviceId, Notification, Headers}) of
-    not_connection_owner -> {error, not_connection_owner};
-    {Timeout, StreamId}  -> wait_response(ConnectionId, Timeout, StreamId)
-  end.
+  gen_statem:call(ConnectionId, {push_notification, DeviceId, Notification, Headers}).
 
 %% @doc Pushes notification to certificate APNs connection.
 -spec push_notification( name() | pid()
@@ -167,100 +180,206 @@ push_notification(ConnectionId, DeviceId, Notification, Headers) ->
                        , notification()
                        , apns:headers()) -> apns:response() | {error, not_connection_owner}.
 push_notification(ConnectionId, Token, DeviceId, Notification, Headers) ->
-  case gen_server:call(ConnectionId, {push_notification, Token, DeviceId, Notification, Headers}) of
-    not_connection_owner -> {error, not_connection_owner};
-    {Timeout, StreamId}  -> wait_response(ConnectionId, Timeout, StreamId)
-  end.
+  gen_statem:call(ConnectionId, {push_notification, Token, DeviceId, Notification, Headers}).
+
+%% @doc Waits until the APNS connection is up.
+%%
+%% Note that this function does not need to be called before
+%% sending push notifications, since they will be queued up
+%% and sent when the connection is established.
+-spec wait_apns_connection_up(pid()) -> ok.
+wait_apns_connection_up(Server) ->
+  gen_statem:call(Server, wait_apns_connection_up, infinity).
 
 %%%===================================================================
-%%% gen_server callbacks
+%%% gen_statem callbacks
 %%%===================================================================
 
--spec init({connection(), pid()}) -> {ok, State :: state()}.
+-spec callback_mode() -> state_functions.
+callback_mode() -> state_functions.
+
+-spec init({connection(), pid()})
+  -> { ok
+     , open_connection
+     , State :: state()
+     , {next_event, internal, init}
+     }.
 init({Connection, Client}) ->
-  process_flag(trap_exit, true),
-  ConnectionPid = open_http2_connection(Connection),
+  StateData = #{ connection      => Connection
+               , client          => Client
+               , backoff         => 1
+               , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
+               },
+  {ok, open_connection, StateData,
+    {next_event, internal, init}}.
 
-  {ok, #{ connection       => Connection
-        , http2_connection => ConnectionPid
-        , client           => Client
-        , backoff          => 1
-        , backoff_ceiling  => application:get_env(apns, backoff_ceiling, 10)
-        }}.
+-spec open_connection(_, _, _) -> _.
+open_connection(internal, _, #{connection := Connection} = StateData) ->
+  NextState = case proxy(Connection) of
+    #{type := connect} -> open_proxy;
+    undefined          -> open_origin
+  end,
+  {next_state, NextState, StateData,
+    {next_event, internal, init}}.
 
--spec handle_call( Request :: term(), From :: {pid(), term()}, State) ->
-  {reply, term(), State}.
-handle_call(http2_connection, _From, #{http2_connection := HTTP2Conn} = State) ->
-  {reply, HTTP2Conn, State};
-handle_call( {push_notification, DeviceId, Notification, Headers}
-           , {From, _}
-           , #{client := From} = State) ->
-  #{connection := Connection, http2_connection := HTTP2Conn} = State,
-  #{timeout := Timeout} = Connection,
-  StreamId = push(HTTP2Conn, DeviceId, Headers, Notification, Connection),
-  {reply, {Timeout, StreamId}, State};
-handle_call( {push_notification, Token, DeviceId, Notification, HeadersMap}
-           , {From, _}
-           , #{client := From} = State) ->
-  #{connection := Connection, http2_connection := HTTP2Conn} = State,
-  Headers = add_authorization_header(HeadersMap, Token),
-  #{timeout := Timeout} = Connection,
-  StreamId = push(HTTP2Conn, DeviceId, Headers, Notification, Connection),
-  {reply, {Timeout, StreamId}, State};
-handle_call( {push_notification, _, _, _}, _From, State) ->
-  {reply, not_connection_owner, State};
-handle_call( {push_notification, _, _, _, _}, _From, State) ->
-  {reply, not_connection_owner, State};
-handle_call(_Request, _From, State) ->
-  {reply, ok, State}.
+-spec open_origin(_, _, _) -> _.
+open_origin(internal, _, #{connection := Connection} = StateData) ->
+  Host = host(Connection),
+  Port = port(Connection),
+  TransportOpts = transport_opts(Connection),
+  {next_state, open_common, StateData,
+    {next_event, internal, { Host
+                           , Port
+                           , #{ protocols      => [http2]
+                              , transport_opts => TransportOpts
+                              , retry          => 0
+                              }}}}.
 
--spec handle_cast(Request :: term(), State) ->
-  {noreply, State}.
-handle_cast(stop, State) ->
-  {stop, normal, State};
-handle_cast(_Request, State) ->
-  {noreply, State}.
+-spec open_proxy(_, _, _) -> _.
+open_proxy(internal, _, StateData) ->
+  #{connection := Connection} = StateData,
+  #{type := connect, host := ProxyHost, port := ProxyPort} = proxy(Connection),
+  {next_state, open_common, StateData,
+    {next_event, internal, { ProxyHost
+                           , ProxyPort
+                           , #{ protocols => [http]
+                              , transport => tcp
+                              , retry     => 0
+                              }}}}.
 
--spec handle_info(Info :: timeout() | term(), State) -> {noreply, State}.
-handle_info( {'EXIT', HTTP2Conn, _}
-           , #{ http2_connection := HTTP2Conn
-              , client           := Client
-              , backoff          := Backoff
-              , backoff_ceiling  := Ceiling
-              } = State) ->
-  ok = h2_client:stop(HTTP2Conn),
-  Client ! {reconnecting, self()},
-  Sleep = backoff(Backoff, Ceiling) * 1000, % seconds to wait before reconnect
-  {ok, _} = timer:send_after(Sleep, reconnect),
-  {noreply, State#{backoff => Backoff + 1}};
-handle_info(reconnect, State) ->
-  #{ connection      := Connection
-   , client          := Client
-   } = State,
-  HTTP2Conn = open_http2_connection(Connection),
+%% This function exists only to make Elvis happy.
+%% I do not think it makes things any easier to read.
+-spec open_common(_, _, _) -> _.
+open_common(internal, {Host, Port, Opts}, StateData) ->
+  {ok, GunPid} = gun:open(Host, Port, Opts),
+  GunMon = monitor(process, GunPid),
+  {next_state, await_up,
+    StateData#{gun_pid => GunPid, gun_monitor => GunMon},
+    {state_timeout, 15000, open_timeout}}.
+
+-spec await_up(_, _, _) -> _.
+await_up(info, {gun_up, GunPid, Protocol}, #{gun_pid := GunPid} = StateData) ->
+  #{connection := Connection} = StateData,
+  NextState = case proxy(Connection) of
+    #{type := connect} when Protocol =:= http -> proxy_connect_to_origin;
+    undefined when Protocol =:= http2 -> connected
+  end,
+  {next_state, NextState, StateData,
+    {next_event, internal, on_connect}};
+await_up(EventType, EventContent, StateData) ->
+  handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, postpone).
+
+-spec proxy_connect_to_origin(_, _, _) -> _.
+proxy_connect_to_origin(internal, on_connect, StateData) ->
+  #{connection := Connection, gun_pid := GunPid} = StateData,
+  Host = host(Connection),
+  Port = port(Connection),
+  TransportOpts = transport_opts(Connection),
+  Destination0 = #{ host => Host
+                  , port => Port
+                  , protocol => http2
+                  , transport => tls
+                  , tls_opts => TransportOpts
+                  },
+  Destination = case proxy(Connection) of
+    #{ username := Username, password := Password } ->
+      Destination0#{ username => Username, password => Password };
+    _ ->
+      Destination0
+  end,
+  ConnectRef = gun:connect(GunPid, Destination),
+  {next_state, await_tunnel_up, StateData#{gun_connect_ref => ConnectRef},
+    {state_timeout, 30000, proxy_connect_timeout}}.
+
+-spec await_tunnel_up(_, _, _) -> _.
+await_tunnel_up( info
+               , {gun_response, GunPid, ConnectRef, fin, 200, _}
+               , #{gun_pid := GunPid, gun_connect_ref := ConnectRef} = StateData) ->
+  {next_state, connected, StateData,
+    {next_event, internal, on_connect}};
+await_tunnel_up(EventType, EventContent, StateData) ->
+  handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, postpone).
+
+-spec connected(_, _, _) -> _.
+connected(internal, on_connect, #{client := Client}) ->
   Client ! {connection_up, self()},
-  {noreply, State#{http2_connection => HTTP2Conn , backoff => 1}};
-handle_info({'END_STREAM', StreamId}, #{http2_connection := HTTP2Conn, client := Client} = State) ->
-  {ok, {ResponseHeaders, ResponseBody}} = h2_client:get_response(HTTP2Conn, StreamId),
-  {Status, ResponseHeaders2} = normalize_response(ResponseHeaders),
-  ResponseBody2 = normalize_response_body(ResponseBody),
-  Client ! {apns_response, self(), StreamId, {Status, ResponseHeaders2, ResponseBody2}},
-  {noreply, State};
-handle_info(_Info, State) ->
-  {noreply, State}.
+  keep_state_and_data;
+connected( {call, {Client, _} = From}
+         , {push_notification, DeviceId, Notification, Headers}
+         , #{client := Client} = StateData) ->
+  #{connection := Connection, gun_pid := GunPid} = StateData,
+  #{timeout := Timeout} = Connection,
+  Response = push(GunPid, DeviceId, Headers, Notification, Timeout),
+  {keep_state_and_data, {reply, From, Response}};
+connected( {call, {Client, _} = From}
+         , {push_notification, Token, DeviceId, Notification, Headers0}
+         , #{client := Client} = StateData) ->
+  #{connection := Connection, gun_pid := GunConn} = StateData,
+  #{timeout := Timeout} = Connection,
+  Headers = add_authorization_header(Headers0, Token),
+  Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
+  {keep_state_and_data, {reply, From, Response}};
+connected({call, From}, Event, _) when element(1, Event) =:= push_notification ->
+  {keep_state_and_data, {reply, From, {error, not_connection_owner}}};
+connected({call, From}, wait_apns_connection_up, _) ->
+  {keep_state_and_data, {reply, From, ok}};
+connected({call, From}, Event, _) when Event =/= gun_pid ->
+  {keep_state_and_data, {reply, From, {error, bad_call}}};
+connected(EventType, EventContent, StateData) ->
+  handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, drop).
 
--spec terminate( Reason :: (normal | shutdown | {shutdown, term()} | term())
-               , State  :: state()
-               ) -> ok.
-terminate(_Reason, _State) ->
-  ok.
+-spec down(_, _, _) -> _.
+down(internal
+    , _
+    , #{ gun_pid         := GunPid
+       , gun_monitor     := GunMon
+       , client          := Client
+       , backoff         := Backoff
+       , backoff_ceiling := Ceiling
+       }) ->
+  true = demonitor(GunMon, [flush]),
+  gun:close(GunPid),
+  Client ! {reconnecting, self()},
+  Sleep = backoff(Backoff, Ceiling) * 1000,
+  {keep_state_and_data, {state_timeout, Sleep, backoff}};
+down(state_timeout, backoff, StateData) ->
+  {next_state, open_connection, StateData,
+    {next_event, internal, init}};
+down(EventType, EventContent, StateData) ->
+  handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, postpone).
+
+-spec handle_common(_, _, _, _, _) -> _.
+handle_common({call, From}, gun_pid, _, #{gun_pid := GunPid}, _) ->
+  {keep_state_and_data, {reply, From, GunPid}};
+handle_common(cast, stop, _, _, _) ->
+  {stop, normal};
+handle_common( info
+             , {'DOWN', GunMon, process, GunPid, Reason}
+             , StateName
+             , #{gun_pid := GunPid, gun_monitor := GunMon} = StateData
+             , _) ->
+  {next_state, down, StateData,
+    {next_event, internal, {down, StateName, Reason}}};
+handle_common( state_timeout
+             , EventContent
+             , StateName
+             , #{gun_pid := GunPid} = StateData
+             , _) ->
+  gun:close(GunPid),
+  {next_state, down, StateData,
+    {next_event, internal, {state_timeout, StateName, EventContent}}};
+handle_common(_, _, _, _, postpone) ->
+  {keep_state_and_data, postpone};
+handle_common(_, _, _, _, drop) ->
+  keep_state_and_data.
 
 -spec code_change(OldVsn :: term() | {down, term()}
-                 , State
+                 , StateName
+                 , StateData
                  , Extra :: term()
-                 ) -> {ok, State}.
-code_change(_OldVsn, State, _Extra) ->
-  {ok, State}.
+                 ) -> {ok, StateName, StateData}.
+code_change(_OldVsn, StateName, StateData, _Extra) ->
+  {ok, StateName, StateData}.
 
 %%%===================================================================
 %%% Connection getters/setters Functions
@@ -298,15 +417,14 @@ keyfile(#{keyfile := Keyfile}) ->
 type(#{type := Type}) ->
   Type.
 
-%%%===================================================================
-%%% Internal Functions
-%%%===================================================================
+-spec proxy(connection()) -> proxy_info() | undefined.
+proxy(#{proxy_info := Proxy}) ->
+  Proxy;
+proxy(_) ->
+  undefined.
 
--spec open_http2_connection(connection()) -> ConnectionPid :: pid().
-open_http2_connection(Connection) ->
-  Host = host(Connection),
-
-  TransportOpts = case type(Connection) of
+transport_opts(Connection) ->
+  case type(Connection) of
     certdata ->
       Cert = certdata(Connection),
       Key = keydata(Connection),
@@ -317,12 +435,14 @@ open_http2_connection(Connection) ->
       [{certfile, Certfile}, {keyfile, Keyfile}];
     token ->
       []
-  end,
-  {ok, ConnectionPid} = h2_client:start_link(https, Host, TransportOpts),
-  ConnectionPid.
+  end.
 
--spec get_headers(binary(), apns:headers(), connection()) -> list().
-get_headers(DeviceId, Headers, Connection) ->
+%%%===================================================================
+%%% Internal Functions
+%%%===================================================================
+
+-spec get_headers(apns:headers()) -> list().
+get_headers(Headers) ->
   List = [ {<<"apns-id">>, apns_id}
          , {<<"apns-expiration">>, apns_expiration}
          , {<<"apns-priority">>, apns_priority}
@@ -336,18 +456,7 @@ get_headers(DeviceId, Headers, Connection) ->
       Value -> [{ActualHeader, Value}]
     end
   end,
-  Headers2 = lists:flatmap(F, List),
-  lists:append(mandatory_headers(DeviceId, Connection), Headers2).
-
--spec mandatory_headers(binary(), connection()) -> list().
-mandatory_headers(DeviceId, #{apple_host := Host, apple_port := Port}) ->
-  Host2 = list_to_binary(Host),
-  Port2 = integer_to_binary(Port),
-  [ {<<":method">>, <<"POST">>}
-  , {<<":path">>, get_device_path(DeviceId)}
-  , {<<":scheme">>, <<"https">>}
-  , {<<":authority">>, <<Host2/binary, $:, Port2/binary>>}
-  ].
+  lists:flatmap(F, List).
 
 -spec get_device_path(apns:device_id()) -> binary().
 get_device_path(DeviceId) ->
@@ -357,33 +466,20 @@ get_device_path(DeviceId) ->
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
 
--spec push(pid(), apns:device_id(), apns:headers(), notification(), connection()) ->
+-spec push(pid(), apns:device_id(), apns:headers(), notification(), integer()) ->
   apns:stream_id().
-push(HTTP2Conn, DeviceId, HeadersMap, Notification, Connection) ->
-  Headers = get_headers(DeviceId, HeadersMap, Connection),
-  {ok, StreamID} = h2_client:send_request(HTTP2Conn, Headers, Notification),
-  StreamID.
-
--spec normalize_response(list()) -> {integer(), list()}.
-normalize_response(ResponseHeaders) ->
-  {<<":status">>, Status} = lists:keyfind(<<":status">>, 1, ResponseHeaders),
-  {binary_to_integer(Status), lists:keydelete(<<":status">>, 1, ResponseHeaders)}.
-
--spec normalize_response_body(list()) -> list() | no_body.
-normalize_response_body([]) ->
-  no_body;
-normalize_response_body([ResponseBody]) ->
-  jsx:decode(ResponseBody).
-
--spec wait_response(name() | pid(), integer(), integer()) -> apns:response().
-wait_response(ConnectionId, Timeout, StreamID) when is_atom(ConnectionId) ->
-  Server = whereis(ConnectionId),
-  wait_response(Server, Timeout, StreamID);
-wait_response(ConnectionId, Timeout, StreamID) when is_pid(ConnectionId) ->
-  receive
-    {apns_response, ConnectionId, StreamID, Response} -> Response
-  after
-    Timeout -> {timeout, StreamID}
+push(GunConn, DeviceId, HeadersMap, Notification, Timeout) ->
+  Headers = get_headers(HeadersMap),
+  Path = get_device_path(DeviceId),
+  StreamRef = gun:post(GunConn, Path, Headers, Notification),
+  case gun:await(GunConn, StreamRef, Timeout) of
+      {response, fin, Status, ResponseHeaders} ->
+        {Status, ResponseHeaders, no_body};
+      {response, nofin, Status, ResponseHeaders} ->
+        {ok, Body} = gun:await_body(GunConn, StreamRef, Timeout),
+        DecodedBody = jsx:decode(Body),
+        {Status, ResponseHeaders, DecodedBody};
+      {error, timeout} -> timeout
   end.
 
 -spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().

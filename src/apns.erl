@@ -24,6 +24,7 @@
         , stop/0
         , connect/1
         , connect/2
+        , wait_for_connection_up/1
         , close_connection/1
         , push_notification/3
         , push_notification/4
@@ -40,16 +41,14 @@
              , response/0
              , token/0
              , headers/0
-             , stream_id/0
              ]).
 
--type json()      :: #{binary() | atom() => binary() | json()}.
+-type json()      :: #{binary() => binary() | json()}.
 -type device_id() :: binary().
--type stream_id() :: integer().
 -type response()  :: { integer()          % HTTP2 Code
                      , [term()]           % Response Headers
                      , [term()] | no_body % Response Body
-                     } | {timeout, stream_id()}.
+                     } | timeout.
 -type token()     :: binary().
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
@@ -78,15 +77,20 @@ stop() ->
 
 %% @doc Connects to APNs service with Provider Certificate or Token
 -spec connect( apns_connection:type(), apns_connection:name()) ->
-  {ok, pid()} | {error, timeout}.
+  {ok, pid()}.
 connect(Type, ConnectionName) ->
   DefaultConnection = apns_connection:default_connection(Type, ConnectionName),
   connect(DefaultConnection).
 
 %% @doc Connects to APNs service
--spec connect(apns_connection:connection()) -> {ok, pid()} | {error, timeout}.
+-spec connect(apns_connection:connection()) -> {ok, pid()}.
 connect(Connection) ->
   apns_sup:create_connection(Connection).
+
+%% @doc Wait for the APNs connection to be up.
+-spec wait_for_connection_up(pid()) -> ok.
+wait_for_connection_up(Server) ->
+  apns_connection:wait_apns_connection_up(Server).
 
 %% @doc Closes the connection with APNs service.
 -spec close_connection(apns_connection:name() | pid()) -> ok.
