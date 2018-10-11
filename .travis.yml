@@ -5,6 +5,7 @@ otp_release:
   - 19.3
 before_install:
   - ./ci before_install "${PWD:?}"/rebar3
+  - pip install --user codecov
 install:
   - ./ci install "${PWD:?}"/rebar3
 script:
@@ -12,3 +13,5 @@ script:
 cache:
   directories:
     - .plt
+after_success:
+  - codecov
