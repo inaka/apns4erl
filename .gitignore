@@ -14,3 +14,4 @@ log/
 *_plt
 .DS_Store
 doc/
+codecov.json
