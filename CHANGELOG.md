@@ -1,5 +1,18 @@
 # Change Log
 
+## [2.3.0](https://github.com/inaka/apns4erl/tree/2.3.0) (2018-10-12)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.2.1...2.3.0)
+
+**Closed issues:**
+
+- adding coverage in Travis [\#218](https://github.com/inaka/apns4erl/issues/218)
+
+**Merged pull requests:**
+
+- \[\#218\] integrating with codecov [\#219](https://github.com/inaka/apns4erl/pull/219) ([ferigis](https://github.com/ferigis))
+- Test erlang 21 [\#216](https://github.com/inaka/apns4erl/pull/216) ([getong](https://github.com/getong))
+- Switch apns to use Gun, add support for CONNECT proxies [\#215](https://github.com/inaka/apns4erl/pull/215) ([essen](https://github.com/essen))
+
 ## [2.2.1](https://github.com/inaka/apns4erl/tree/2.2.1) (2018-07-04)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/2.2.0...2.2.1)
 
@@ -11,6 +24,7 @@
 
 **Merged pull requests:**
 
+- Update dependencies and bump version to 2.2.1 [\#213](https://github.com/inaka/apns4erl/pull/213) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - send mandatory headers at top [\#212](https://github.com/inaka/apns4erl/pull/212) ([lazedo](https://github.com/lazedo))
 - Update from @andreabenini [\#210](https://github.com/inaka/apns4erl/pull/210) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Update README.md [\#204](https://github.com/inaka/apns4erl/pull/204) ([igaray](https://github.com/igaray))
