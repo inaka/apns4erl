@@ -10,6 +10,8 @@ Copyright (c) 2017 Erlang Solutions Ltd. <support@inaka.net>, released under the
 
 __Note:__ Currently it supports push notifications with certificate and authentication token.
 
+__BINARY_API:__  This lib supports http2. Check [using Legacy Binary API](https://github.com/softwarejoint/ex_apns)
+
 ## Requirements
 - You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
 - Erlang R21
