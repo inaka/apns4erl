@@ -1,6 +1,6 @@
 
-Apns4erl v2 [![Build Status](https://travis-ci.org/inaka/apns4erl.svg?branch=master)](https://travis-ci.org/inaka/apns4erl)[![codecov](https://codecov.io/gh/inaka/apns4erl/branch/master/graph/badge.svg)](https://codecov.io/gh/inaka/apns4erl)
-========
+Apns Erlang
+=======
 
 <img src="https://media.giphy.com/media/uZQP0PR0BmkGA/giphy.gif" align="right" style="float:right" height="400" />
 
@@ -8,51 +8,15 @@ This lib is intended to allow you to write an APNs provider for [Apple Push Noti
 
 Copyright (c) 2017 Erlang Solutions Ltd. <support@inaka.net>, released under the Apache 2 license
 
-You can find the v1 [here](https://github.com/inaka/apns4erl/releases/tag/1.0.6-final)?
-
-__Note:__ `Apns4erl v2` is still under development. Currently it supports push notifications with certificate and authentication token.
-
-Contact Us
-==========
-If you find any **bugs** or have a **problem** while using Apns4erl, please [open an issue](https://github.com/inaka/apns4erl/issues/new) in this repo (or a pull request :)).
+__Note:__ Currently it supports push notifications with certificate and authentication token.
 
 ## Requirements
 - You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
-- Erlang R19+
-
-## Important Links
-
-- [Pool of connections Example](examples/apns_pool/README.md)
+- Erlang R21
 
 ## How to use it?
 
-First we have to fill our `config` data. There are two ways for do this, one is filling a `config` file. This is an example you can find at `test/test.config`:
-
-```
-{
-  apns,
-  [ {apple_host,       "api.development.push.apple.com"}
-  , {apple_port,       443}
-  , {certfile,         "priv/apns-dev-cert.pem"}
-  , {keyfile,          "priv/apns-dev-key-noenc.pem"}
-  , {token_keyfile,    "priv/APNsAuthKey_KEYID12345.p8"}
-  , {timeout,          10000}
-
-  %% APNs Headers
-
-  , {apns_id,          undefined}
-  , {apns_expiration,  0}
-  , {apns_priority,    10}
-  , {apns_topic,       "com.example.myapp"}
-  , {apns_collapse_id, undefined}
-
-  %% Feedback
-  , {feedback_host,    "feedback.push.apple.com"}
-  , {feedback_port,    2195}
-  ]
-  ]
-}
-```
+Checkout the sample config file in config/ directory.
 
 The other way is send all that info as a parameter to `apns:connect/1` function encapsulated in a `apns_connection:connection()` structure:
 
@@ -77,14 +41,12 @@ This `key` will be needed in order to generate a token which will be used every 
 
 `apns4erl` can be included as a dependency and started from `yourapp.app.src`. You also can run it on the shell for testing.
 
+1. copy the conf/sys.config.example to conf/sys.config
+2. Setup the necessary values
+
 ```
-> rebar3 compile
-> erl -pa _build/default/lib/*/ebin -config test/test.config
-```
-Don't forget your config file if you want to use `apns:connect/2`.
-```erlang
-1> apns:start().
-ok
+> make run
+>
 ```
 
 ## Create connections
@@ -249,20 +211,11 @@ But when closing a connection makes sense `apns4erl` gives us the function `apns
 
 ## Feedback
 
-`apns4erl` also allows us to get feedback from APNs service. It does it thru the [binary API](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/BinaryProviderAPI.html).
+`apns4erl` uses callback to handle feedback. Currently only invalid token causes the callback function to be called.
+Feedback function can be specified in the sys.config file.
 
-In order to get feedback we would need a `Provider Certificate`. `apns4erl` provides us two functions, `apns:get_feedback/0` and `apns:get_feedback/1` which require some Feedback's information like url, port, timeout...  We can set that info in our `config` file and use `apns:get_feedback/0`. We can also send all that configuration as a parameter to `apns:get_feedback/1` where the config structure must looks like this:
-```erlang
-#{ host     := string()
- , port     := pos_integer()
- , certfile := string()
- , keyfile  => string()
- , timeout  := pos_integer()
- }.
-```
-The response for both functions will be a list of `feedback()`
+It takes the following form.
 
 ```erlang
--type feedback() :: {calendar:datetime(), string()}.
+M:F(ConnectionName, DeviceId, InValidationTimestamp).
 ```
-Where the first element in the tuple is the date when the device uninstalled the app and the second element is the Device Id.
