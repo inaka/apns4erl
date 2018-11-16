@@ -402,7 +402,7 @@ connected( info
          , {gun_response, _, StreamRef, nofin, Status, Headers}
          , StateData) ->
   #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
-  #{timeout := Timeout, feedback := Feedback} = Connection,
+  #{name := Name, timeout := Timeout, feedback := Feedback} = Connection,
   ApnsId = find_header_val(Headers, apns_id),
   Queue1 = lists:keydelete(ApnsId, 1, Queue),
   case gun:await_body(GunConn, StreamRef, Timeout) of
@@ -413,7 +413,7 @@ connected( info
               {410, {M, F}, DeviceId} ->
                   BodyJson = jsx:decode(Body, [return_maps]),
                   #{timestamp := Timestamp} = BodyJson,
-                  catch erlang:apply(M, F, [DeviceId, Timestamp]);
+                  catch erlang:apply(M, F, [Name, DeviceId, Timestamp]);
               _ ->
                   ok
           end;
