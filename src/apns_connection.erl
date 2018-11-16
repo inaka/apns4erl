@@ -212,8 +212,8 @@ generate_token(KeyId, TeamId, PrivKey, Iat) ->
   #'PrivateKeyInfo'{privateKey = ECPrivateKey} = public_key:pem_entry_decode(ECPrivateKeyPem),
   ECKey = public_key:der_decode('ECPrivateKey', ECPrivateKey),
   Encoded = public_key:sign(DataEncoded, sha256, ECKey),
-  BS = base64:encode(Encoded),
-  Signature = apns_utils:strip_b64(BS),
+  Signature = base64:encode(Encoded),
+%%  Signature = apns_utils:strip_b64(BS),
 
   <<DataEncoded/binary, $., Signature/binary>>.
 
@@ -390,15 +390,19 @@ connected( cast
 
 connected( info
          , {gun_response, _, _, fin, Status, Headers}
-         , #{ queue := _Queue} = StateData) ->
+         , #{ queue := Queue} = StateData) ->
   ?DEBUG("Final packet: ~p~n", [{Status, Headers}]),  
-  {keep_state, StateData};
+  Queue1 = lists:keydelete(ApnsId, 1, Queue),
+  StateData1 = StateData#{queue => Queue1},
+  {keep_state, StateData1};
 
 connected( info
          , {gun_response, _, StreamRef, nofin, Status, Headers}
          , StateData) ->
-  #{connection := Connection, queue := _Queue, gun_pid := GunConn} = StateData,
+  #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
   #{timeout := Timeout} = Connection,
+  ApnsId = find_header_val(Headers, apns_id),
+  Queue1 = lists:keydelete(ApnsId, 1, Queue),
   case gun:await_body(GunConn, StreamRef, Timeout) of
       {ok, Body} ->
         ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, Body}]),
@@ -406,7 +410,8 @@ connected( info
       {error, Reason} ->
         ?ERROR_MSG("Error Reading Body ~p~n", [Reason])
   end,
-  {keep_state, StateData};
+  StateData1 = StateData#{queue => Queue1},
+  {keep_state, StateData1};
 
 connected(EventType, EventContent, StateData) ->
   handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, drop).

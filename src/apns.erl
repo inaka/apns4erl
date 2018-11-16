@@ -134,10 +134,10 @@ default_headers() ->
 default_headers([], Headers) ->
   Headers;
 default_headers([Key | Keys], Headers) ->
-  case application:get_env(apns, Key) of
-    {ok, undefined} ->
+  case application:get_env(apns, Key, undefined) of
+    undefined ->
       default_headers(Keys, Headers);
-    {ok, Value} ->
+    Value ->
       NewHeaders = Headers#{Key => to_binary(Value)},
       default_headers(Keys, NewHeaders)
   end.
