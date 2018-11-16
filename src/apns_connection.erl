@@ -165,8 +165,8 @@ default_connection(token, ConnectionName) ->
   #{ name       => ConnectionName
    , apple_host => host(Env)
    , apple_port => Port
-   , token_kid  => TokenID
-   , team_id    => TeamID
+   , token_kid  => list_to_binary(TokenID)
+   , team_id    => list_to_binary(TeamID)
    , token_file => PrivKey
    , jwt_token  => <<"">>
    , jwt_iat    => 0
@@ -306,6 +306,7 @@ open_proxy(internal, _, StateData) ->
 %% I do not think it makes things any easier to read.
 -spec open_common(_, _, _) -> _.
 open_common(internal, {Host, Port, Opts}, StateData) ->
+  ?DEBUG("open_common ~p~n", [{Host, Port, Opts}]),
   {ok, GunPid} = gun:open(Host, Port, Opts),
   GunMon = monitor(process, GunPid),
   {next_state, await_up,
@@ -392,6 +393,7 @@ connected( info
          , {gun_response, _, _, fin, Status, Headers}
          , #{ queue := Queue} = StateData) ->
   ?DEBUG("Final packet: ~p~n", [{Status, Headers}]),  
+  ApnsId = find_header_val(Headers, apns_id),
   Queue1 = lists:keydelete(ApnsId, 1, Queue),
   StateData1 = StateData#{queue => Queue1},
   {keep_state, StateData1};
@@ -400,15 +402,23 @@ connected( info
          , {gun_response, _, StreamRef, nofin, Status, Headers}
          , StateData) ->
   #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
-  #{timeout := Timeout} = Connection,
+  #{timeout := Timeout, feedback := Feedback} = Connection,
   ApnsId = find_header_val(Headers, apns_id),
   Queue1 = lists:keydelete(ApnsId, 1, Queue),
   case gun:await_body(GunConn, StreamRef, Timeout) of
       {ok, Body} ->
-        ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, Body}]),
-        ok;
+          ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, Body}]),
+          case {Status, Feedback, lists:keyfind(ApnsId, 1, Queue)} of
+              {_, _ , false} -> ok;
+              {410, {M, F}, DeviceId} ->
+                  BodyJson = jsx:decode(Body, [return_maps]),
+                  #{timestamp := Timestamp} = BodyJson,
+                  catch erlang:apply(M, F, [DeviceId, Timestamp]);
+              _ ->
+                  ok
+          end;
       {error, Reason} ->
-        ?ERROR_MSG("Error Reading Body ~p~n", [Reason])
+        ?ERROR_MSG("Error Reading Body ~p~n", [{Status, Headers, Reason}])
   end,
   StateData1 = StateData#{queue => Queue1},
   {keep_state, StateData1};
@@ -533,7 +543,10 @@ transport_opts(Connection) ->
       [{certfile, Certfile}, {keyfile, Keyfile}];
     token ->
       CaCertFile = filename:join([code:priv_dir(apns), "GeoTrust_Global_CA.pem"]),
-      [{cacertfile, CaCertFile}]
+      [{cacertfile, CaCertFile},
+       {server_name_indication, disable},
+       {crl_check, false},
+       {verify, verify_none}]
   end.
 
 %%%===================================================================
@@ -543,8 +556,8 @@ transport_opts(Connection) ->
 -spec get_headers(apns:headers()) -> list().
 get_headers(Headers) ->
   List = [ {<<"apns-id">>, apns_id, undefined}
-         , {<<"apns-expiration">>, apns_expiration, 0}
-         , {<<"apns-priority">>, apns_priority, 5}
+         , {<<"apns-expiration">>, apns_expiration, <<"0">>}
+         , {<<"apns-priority">>, apns_priority, <<"5">>}
          , {<<"apns-topic">>, apns_topic, undefined}
          , {<<"apns-collapse_id">>, apns_collapse_id, undefined}
          , {<<"authorization">>, apns_auth_token, undefined}
