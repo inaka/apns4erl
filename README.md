@@ -156,18 +156,7 @@ We will need a `kid` value, this is the key identifier. In our case is the last 
 
 You can find more info [here](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html)
 
-In order to push a notification we will use `apns:push_notification_token/4,5`. We will need the same attributes we used sending a notification over `Provider Certificate` connections plus a signed `token`. This token has a 1 hour life, so that means we can generate one token and use it many times till it expires. Lets try.
-
-Create the token:
-
-```erlang
-6> TeamId = <<"THEATEAM">>.
-<<"THEATEAM">>
-7> KeyID = <<"KEYID123456">>.
-<<"KEYID123456">>
-8> Token = apns:generate_token(TeamId, KeyID).
-<<"eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IktFWUlEMTIzNDU2In0.eyJpc3MiOiJUSEVBVEVBTSIsImlhdCI6MTQ4NjE0OTMzNH0.MEQC"...>>
-```
+Library generates and maintains tokens based on values provided in sys.config file.
 
 Now push the notification:
 
@@ -176,25 +165,11 @@ Now push the notification:
 <<"a0dc63fb059cb9c13b03e5c974af3dd33d67fed4147da8c5ada0626439e18935">>
 13> Notification = #{aps => #{alert => <<"you have a message">>}}.
 #{aps => #{alert => <<"you have a message">>}}
-14> apns:push_notification_token(my_second_connection, Token, DeviceId, Notification).
+14> apns:push_notification(my_second_connection, DeviceId, Notification).
 {200,
  [{<<"apns-id">>,<<"EBC03BF9-A784-FDED-34F7-5A8D859DA977">>}],
  no_body}
 ```
-
-We can use this token for an entire hour, after that we will receive something like this:
-
-```erlang
-16> apns:push_notification_token(my_second_connection, Token, DeviceId, Notification).
-{403,
- [{<<"apns-id">>,<<"03FF9497-8A6B-FFD6-B32B-160ACEDE35F0">>}],
- [{<<"reason">>,<<"ExpiredProviderToken">>}]}
-```
-
-## Pushing notifications
-
-*NOTE* in order to push notifications, in both ways, we _must_ call `apns:push_notification/3,4` and `apns:push_notification_token/4,5` from the same
-process which created the connection. If we try to do it from a different one we will get an error `{error, not_connection_owner}`.
 
 ## Reconnection
 
