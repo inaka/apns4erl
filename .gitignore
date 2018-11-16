@@ -1,4 +1,7 @@
 .eunit
+cert/
+conf/sys.config
+_rel/
 deps
 *.o
 *.beam

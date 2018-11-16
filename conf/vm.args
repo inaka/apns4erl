@@ -1,0 +1,20 @@
+-sname apns
+
+## Enable kernel poll and a few async threads
++K true
++A 5
++P 10000000
+
+## Tweak GC to run more often
+-env ERL_FULLSWEEP_AFTER 10
+
+## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
+## (Disabled by default..use with caution!)
+##-heart
+
+## Increase number of concurrent ports/sockets
+-env ERL_MAX_PORTS 4096
+
+-kernel inet_dist_listen_min 5000 inet_dist_listen_max 5010
+
+-sasl sasl_error_logger false

@@ -24,6 +24,7 @@
         , epoch/0
         , bin_to_hexstr/1
         , seconds_to_timestamp/1
+        , strip_b64/1
         ]).
 
 
@@ -44,8 +45,7 @@ sign(Data) ->
 %% Retrieves the epoch date.
 -spec epoch() -> integer().
 epoch() ->
-  {M, S, _} = os:timestamp(),
-  M * 1000000 + S.
+  os:system_time(second).
 
 %% Converts binary to hexadecimal string().
 -spec bin_to_hexstr(binary()) -> string().

@@ -21,6 +21,9 @@
 
 -behaviour(gen_statem).
 
+-include_lib("public_key/include/public_key.hrl").
+-include("apns.hrl").
+
 %% API
 -export([ start_link/2
         , default_connection/2
@@ -35,7 +38,6 @@
         , gun_pid/1
         , close_connection/1
         , push_notification/4
-        , push_notification/5
         , wait_apns_connection_up/1
         ]).
 
@@ -96,6 +98,7 @@
                          , client          := pid()
                          , backoff         := non_neg_integer()
                          , backoff_ceiling := non_neg_integer()
+                         , queue           => list()
                          }.
 
 %%%===================================================================
@@ -114,46 +117,105 @@ start_link(Connection, Client) ->
 %% @doc Builds a connection() map from the environment variables.
 -spec default_connection(type(), name()) -> connection().
 default_connection(certdata, ConnectionName) ->
-  {ok, Host} = application:get_env(apns, apple_host),
-  {ok, Port} = application:get_env(apns, apple_port),
+  Env = application:get_env(apns, env, development),
+  Port = application:get_env(apns, apple_port, 443),
+  Timeout = application:get_env(apns, timeout, 5000),
+  FeedBack = application:get_env(apns, feedback, undefined),
+
   {ok, Cert} = application:get_env(apns, certdata),
   {ok, Key} = application:get_env(apns, keydata),
-  {ok, Timeout} = application:get_env(apns, timeout),
 
   #{ name       => ConnectionName
-   , apple_host => Host
+   , apple_host => host(Env)
    , apple_port => Port
    , certdata   => Cert
    , keydata    => Key
    , timeout    => Timeout
+   , feedback   => FeedBack
    , type       => certdata
   };
 default_connection(cert, ConnectionName) ->
-  {ok, Host} = application:get_env(apns, apple_host),
-  {ok, Port} = application:get_env(apns, apple_port),
+  Env = application:get_env(apns, env, development),
+  Port = application:get_env(apns, apple_port, 443),
+  Timeout = application:get_env(apns, timeout, 5000),
+  FeedBack = application:get_env(apns, feedback, undefined),
+
   {ok, Certfile} = application:get_env(apns, certfile),
   {ok, Keyfile} = application:get_env(apns, keyfile),
-  {ok, Timeout} = application:get_env(apns, timeout),
 
   #{ name       => ConnectionName
-   , apple_host => Host
+   , apple_host => host(Env)
    , apple_port => Port
    , certfile   => Certfile
    , keyfile    => Keyfile
    , timeout    => Timeout
+   , feedback   => FeedBack
    , type       => cert
   };
 default_connection(token, ConnectionName) ->
-  {ok, Host} = application:get_env(apns, apple_host),
-  {ok, Port} = application:get_env(apns, apple_port),
-  {ok, Timeout} = application:get_env(apns, timeout),
+  Env = application:get_env(apns, env, development),
+  Port = application:get_env(apns, apple_port, 443),
+  Timeout = application:get_env(apns, timeout, 5000),
+  FeedBack = application:get_env(apns, feedback, undefined),
 
+  {ok, PrivKey} = application:get_env(apns, token_keyfile),
+  {ok, TokenID} = application:get_env(apns, token_kid),
+  {ok, TeamID} = application:get_env(apns, team_id),
+  
   #{ name       => ConnectionName
-   , apple_host => Host
+   , apple_host => host(Env)
    , apple_port => Port
+   , token_kid  => TokenID
+   , team_id    => TeamID
+   , token_file => PrivKey
+   , jwt_token  => <<"">>
+   , jwt_iat    => 0
    , timeout    => Timeout
+   , feedback   => FeedBack
    , type       => token
   }.
+
+verify_token(#{jwt_token := <<"">>} = Connection) ->
+  update_token(Connection);
+
+verify_token(#{jwt_iat := Iat} = Connection) ->
+  Now = apns_utils:epoch(),
+  if (Now - Iat - 3500) > 0 -> update_token(Connection);
+     true -> Connection
+  end.
+
+update_token(#{token_kid := KeyId,
+               team_id := TeamId,
+               token_file := PrivKey} = Connection) ->
+  Iat = apns_utils:epoch(),
+  Token = generate_token(KeyId, TeamId, PrivKey, Iat),
+  Connection#{jwt_token => Token, jwt_iat => Iat}.
+
+generate_token(KeyId, TeamId, PrivKey, Iat) ->
+  Algorithm = <<"ES256">>,
+  Header = jsx:encode([ {alg, Algorithm}
+                      , {typ, <<"JWT">>}
+                      , {kid, KeyId}
+                      ]),
+  Payload = jsx:encode([ {iss, TeamId}
+                       , {iat, Iat}
+                       ]),
+
+  ?DEBUG("generate_token ~p~n", [{KeyId, TeamId, PrivKey, Iat}]),
+  HeaderEncoded = base64url:encode(Header),
+  PayloadEncoded = base64url:encode(Payload),
+  DataEncoded = <<HeaderEncoded/binary, $., PayloadEncoded/binary>>,
+  ?DEBUG("generate_token encoded ~p~n", [DataEncoded]),
+  
+  {ok, Key} = file:read_file(PrivKey),
+  [ECPrivateKeyPem] = public_key:pem_decode(Key),
+  #'PrivateKeyInfo'{privateKey = ECPrivateKey} = public_key:pem_entry_decode(ECPrivateKeyPem),
+  ECKey = public_key:der_decode('ECPrivateKey', ECPrivateKey),
+  Encoded = public_key:sign(DataEncoded, sha256, ECKey),
+  BS = base64:encode(Encoded),
+  Signature = apns_utils:strip_b64(BS),
+
+  <<DataEncoded/binary, $., Signature/binary>>.
 
 %% @doc Close the connection with APNs gracefully
 -spec close_connection(name() | pid()) -> ok.
@@ -171,16 +233,7 @@ gun_pid(ConnectionId) ->
                        , notification()
                        , apns:headers()) -> apns:response() | {error, not_connection_owner}.
 push_notification(ConnectionId, DeviceId, Notification, Headers) ->
-  gen_statem:call(ConnectionId, {push_notification, DeviceId, Notification, Headers}).
-
-%% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name() | pid()
-                       , apns:token()
-                       , apns:device_id()
-                       , notification()
-                       , apns:headers()) -> apns:response() | {error, not_connection_owner}.
-push_notification(ConnectionId, Token, DeviceId, Notification, Headers) ->
-  gen_statem:call(ConnectionId, {push_notification, Token, DeviceId, Notification, Headers}).
+  gen_statem:cast(ConnectionId, {push_notification, DeviceId, Notification, Headers}).
 
 %% @doc Waits until the APNS connection is up.
 %%
@@ -205,10 +258,12 @@ callback_mode() -> state_functions.
      , {next_event, internal, init}
      }.
 init({Connection, Client}) ->
+  quickrand:seed(),
   StateData = #{ connection      => Connection
                , client          => Client
                , backoff         => 1
                , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
+               , queue           => []
                },
   {ok, open_connection, StateData,
     {next_event, internal, init}}.
@@ -304,27 +359,55 @@ await_tunnel_up(EventType, EventContent, StateData) ->
 connected(internal, on_connect, #{client := Client}) ->
   Client ! {connection_up, self()},
   keep_state_and_data;
-connected( {call, {Client, _} = From}
-         , {push_notification, DeviceId, Notification, Headers}
-         , #{client := Client} = StateData) ->
-  #{connection := Connection, gun_pid := GunPid} = StateData,
-  #{timeout := Timeout} = Connection,
-  Response = push(GunPid, DeviceId, Headers, Notification, Timeout),
-  {keep_state_and_data, {reply, From, Response}};
-connected( {call, {Client, _} = From}
-         , {push_notification, Token, DeviceId, Notification, Headers0}
-         , #{client := Client} = StateData) ->
-  #{connection := Connection, gun_pid := GunConn} = StateData,
-  #{timeout := Timeout} = Connection,
-  Headers = add_authorization_header(Headers0, Token),
-  Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
-  {keep_state_and_data, {reply, From, Response}};
-connected({call, From}, Event, _) when element(1, Event) =:= push_notification ->
-  {keep_state_and_data, {reply, From, {error, not_connection_owner}}};
 connected({call, From}, wait_apns_connection_up, _) ->
   {keep_state_and_data, {reply, From, ok}};
 connected({call, From}, Event, _) when Event =/= gun_pid ->
   {keep_state_and_data, {reply, From, {error, bad_call}}};
+
+connected( cast
+         , {push_notification, DeviceId, Notification, Headers}
+         , StateData) ->
+
+  #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
+
+  {Conn, Hdrs} = case type(Connection) of 
+    token ->
+      Connection1 = verify_token(Connection),
+      Headers1 = add_authorization_header(Headers, auth_token(Connection1)),
+      {Connection1, Headers1};
+    _ ->
+      {Connection, Headers}
+  end,
+
+  HdrsList = get_headers(Hdrs),
+  Path = get_device_path(DeviceId),
+  _StreamRef = gun:post(GunConn, Path, HdrsList, Notification),
+  ApnsId = find_header_val(HdrsList, apns_id),
+
+  Queue1 = lists:sublist([{ApnsId, DeviceId} | Queue], 100),
+  StateData1 = StateData#{connection => Conn, queue => Queue1},
+  {keep_state, StateData1};
+
+connected( info
+         , {gun_response, _, _, fin, Status, Headers}
+         , #{ queue := _Queue} = StateData) ->
+  ?DEBUG("Final packet: ~p~n", [{Status, Headers}]),  
+  {keep_state, StateData};
+
+connected( info
+         , {gun_response, _, StreamRef, nofin, Status, Headers}
+         , StateData) ->
+  #{connection := Connection, queue := _Queue, gun_pid := GunConn} = StateData,
+  #{timeout := Timeout} = Connection,
+  case gun:await_body(GunConn, StreamRef, Timeout) of
+      {ok, Body} ->
+        ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, Body}]),
+        ok;
+      {error, Reason} ->
+        ?ERROR_MSG("Error Reading Body ~p~n", [Reason])
+  end,
+  {keep_state, StateData};
+
 connected(EventType, EventContent, StateData) ->
   handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, drop).
 
@@ -389,7 +472,10 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 name(#{name := ConnectionName}) ->
   ConnectionName.
 
--spec host(connection()) -> host().
+host(development) ->
+  "api.development.push.apple.com";
+host(production) ->
+  "api.push.apple.com";
 host(#{apple_host := Host}) ->
   Host.
 
@@ -417,11 +503,18 @@ keyfile(#{keyfile := Keyfile}) ->
 type(#{type := Type}) ->
   Type.
 
+-spec auth_token(connection()) -> binary().
+auth_token(#{jwt_token := Token}) ->
+  Token.
+
 -spec proxy(connection()) -> proxy_info() | undefined.
 proxy(#{proxy_info := Proxy}) ->
   Proxy;
 proxy(_) ->
   undefined.
+
+uuid() ->
+  uuid:uuid_to_string(uuid:get_v4(), binary_standard).
 
 transport_opts(Connection) ->
   case type(Connection) of
@@ -434,7 +527,8 @@ transport_opts(Connection) ->
       Keyfile = keyfile(Connection),
       [{certfile, Certfile}, {keyfile, Keyfile}];
     token ->
-      []
+      CaCertFile = filename:join([code:priv_dir(apns), "GeoTrust_Global_CA.pem"]),
+      [{cacertfile, CaCertFile}]
   end.
 
 %%%===================================================================
@@ -443,20 +537,31 @@ transport_opts(Connection) ->
 
 -spec get_headers(apns:headers()) -> list().
 get_headers(Headers) ->
-  List = [ {<<"apns-id">>, apns_id}
-         , {<<"apns-expiration">>, apns_expiration}
-         , {<<"apns-priority">>, apns_priority}
-         , {<<"apns-topic">>, apns_topic}
-         , {<<"apns-collapse_id">>, apns_collapse_id}
-         , {<<"authorization">>, apns_auth_token}
+  List = [ {<<"apns-id">>, apns_id, undefined}
+         , {<<"apns-expiration">>, apns_expiration, 0}
+         , {<<"apns-priority">>, apns_priority, 5}
+         , {<<"apns-topic">>, apns_topic, undefined}
+         , {<<"apns-collapse_id">>, apns_collapse_id, undefined}
+         , {<<"authorization">>, apns_auth_token, undefined}
          ],
-  F = fun({ActualHeader, Key}) ->
-    case (catch maps:get(Key, Headers)) of
-      {'EXIT', {{badkey, Key}, _}} -> [];
-      Value -> [{ActualHeader, Value}]
+  F = fun({ActualHeader, Key, Def}) ->
+      case {Key, maps:get(Key, Headers, Def)} of
+          {apns_id, undefined} -> [{ActualHeader, uuid()}];
+          {_, undefined} -> [];
+          {_, Value} -> [{ActualHeader, Value}]
     end
   end,
   lists:flatmap(F, List).
+
+find_header_val(Headers, apns_id) -> find_header_val(Headers, <<"apns-id">>);
+
+find_header_val(Headers, Key) when is_list(Headers) ->
+  case lists:keysearch(Key, 1, Headers) of
+    {value, {Key, Val}} -> Val;
+    _ -> undefined
+  end;
+find_header_val(Headers, Key) when is_map(Headers) ->
+  map:get(Key, Headers, undefined).
 
 -spec get_device_path(apns:device_id()) -> binary().
 get_device_path(DeviceId) ->
@@ -466,21 +571,6 @@ get_device_path(DeviceId) ->
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
 
--spec push(pid(), apns:device_id(), apns:headers(), notification(), integer()) ->
-  apns:stream_id().
-push(GunConn, DeviceId, HeadersMap, Notification, Timeout) ->
-  Headers = get_headers(HeadersMap),
-  Path = get_device_path(DeviceId),
-  StreamRef = gun:post(GunConn, Path, Headers, Notification),
-  case gun:await(GunConn, StreamRef, Timeout) of
-      {response, fin, Status, ResponseHeaders} ->
-        {Status, ResponseHeaders, no_body};
-      {response, nofin, Status, ResponseHeaders} ->
-        {ok, Body} = gun:await_body(GunConn, StreamRef, Timeout),
-        DecodedBody = jsx:decode(Body),
-        {Status, ResponseHeaders, DecodedBody};
-      {error, timeout} -> timeout
-  end.
 
 -spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
 backoff(N, Ceiling) ->

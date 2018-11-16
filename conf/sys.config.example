@@ -1,0 +1,31 @@
+[
+  {apns, [
+      {env, development},
+      {token_keyfile,    "p8 file path"},
+      {token_kid,        "team_kid"},
+      {team_id,          "team_id"},
+      {apns_topic,       "topic"}
+
+%%    {backoff_ceiling,  10},      
+%%    {feedback,         {Module, Function}},
+%%    {apple_port,       443},
+%%    {certfile,         "priv/apns-dev-cert.pem"},
+%%    {keyfile,          "priv/apns-dev-key-noenc.pem"},
+    ]},
+  {lager, [
+      {log_root, "log" },
+      {crash_log, "crash.log"},
+      {handlers, [
+            {lager_console_backend, [{level, debug},
+                                     {formatter, lager_default_formatter},
+                                     {formatter_config, [time," [",severity,"] ", message, "\n"]}
+            ]},
+            {lager_file_backend, [{file, "apns.log"},
+                                  {level, debug},
+                                  {formatter, lager_default_formatter},
+                                  {formatter_config, [date, " ", time," [",severity,"] ",pid, " ", message, "\n"]},
+                                  {size, 2097152}, {date, "$D0"}, {count, 5}
+            ]}
+        ]}
+    ]}
+].
