@@ -53,7 +53,7 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
 
 ```erlang
 #{ name       := name()
- , apple_host := host()
+ , env        := 'development' | 'production'
  , apple_port := inet:port_number()
  , certfile   => path()
  , keyfile    => path()
@@ -75,7 +75,7 @@ After running `apns_erlang` app we can start creating connections. As we mention
 - `apns:connect/1`: This function accepts as a parameter an `apns_connection:connection()` structure.
   ```erlang
   #{ name       := name()
-   , apple_host := host()
+   , env        := 'development' | 'production'
    , apple_port := inet:port_number()
    , certdata   => binary()
    , certfile   => path()
@@ -94,8 +94,8 @@ Example:
 ```erlang
 1> apns:connect(cert, my_first_connection).
 {ok,<0.87.0>}
-2> apns:connect(#{name => another_cert, apple_host => "api.push.apple.com", apple_port => 443,
-certfile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
+2> apns:connect(#{name => another_cert, env => production, 
+     certfile => "priv/cert.pem", keyfile => "priv/key.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.95.0>}
 ```
@@ -110,7 +110,7 @@ In some scenarios we don't want to assign names to the connections instead we wa
 ```erlang
 1> apns:connect(cert, undefined).
 {ok,<0.127.0>}
-2> apns:connect(#{name => undefined, apple_host => "api.push.apple.com", apple_port => 443,
+2> apns:connect(#{name => undefined, env => production,
 certfile => "priv/cert2.pem", keyfile => "priv/key2-noenc.pem", type => cert}).
 {ok,<0.130.0>}
 3> apns:connect(token, my_second_connection).
