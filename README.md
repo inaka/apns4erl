@@ -34,12 +34,16 @@ You can use `apns_erlang` as a dependency in your rebar.config:
         {apns, ".*", {git, "https://github.com/softwarejoint/apns_erlang", {tag, "1.2.0"}}}
     ]}.
 
-### How to run the application fcm-erlang:
+### How to run the application apns_erlang:
 
-`make rel` will create a release under `_rel/apns` directory. 
+1. copy the conf/sys.config.example to conf/sys.config
+2. Setup the necessary values
+3. `make rel` will create a release under `_rel/apns` directory. 
 
-    $ cd _rel/apns
-    $ bin/apns console
+```
+$ cd _rel/apns
+$ bin/apns console
+```
     
 ## How to use it?
 
@@ -58,27 +62,15 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
  }.
 ```
 
-APNs allows two connection types, one is using `Provider Certificates`. The first certificate option is to supply cert paths in `certfile` and `keyfile`. Alternatively, you can supply a cert binary in `certdata` and a `keydata()`-type tuple (see: https://github.com/inaka/apns4erl/blob/master/src/apns_connection.erl#L64) in `keydata`. Certs are the `Provider Certificates` and the keys are the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
+APNs allows two connection types, one is using `Provider Certificates`. The first certificate option is to supply cert paths in `certfile` and `keyfile`. Alternatively, you can supply a cert binary in `certdata` and a `keydata()`-type tuple (see: https://github.com/softwarejoint/apns_erlang/blob/master/src/apns_connection.erl#L64) in `keydata`. Certs are the `Provider Certificates` and the keys are the `Private Key` both provided by Apple. We need them in `.pem` format, here is an example of how to convert them, check the [certificates](https://blog.serverdensity.com/how-to-build-an-apple-push-notification-provider-server-tutorial/) section.
 
 The other way to connect against APNs is using `Provider Authentication Tokens`, for this choice you must fill the field `token_keyfile`. This is a path to the Authentication Key provided by Apple. This is in `.p8` format and it doesn't need conversion.
 
 This `key` will be needed in order to generate a token which will be used every time we try to push a notification. In connection's time it is not needed.
 
-## Run
-
-`apns4erl` can be included as a dependency and started from `yourapp.app.src`. You also can run it on the shell for testing.
-
-1. copy the conf/sys.config.example to conf/sys.config
-2. Setup the necessary values
-
-```
-> make run
->
-```
-
 ## Create connections
 
-After running `apns4erl` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the functions `apns:connect/1` and `apns:connect/2`.
+After running `apns_erlang` app we can start creating connections. As we mentioned before there are two types of connections. Both are created using the functions `apns:connect/1` and `apns:connect/2`.
 
 - `apns:connect/1`: This function accepts as a parameter an `apns_connection:connection()` structure.
   ```erlang
@@ -200,7 +192,7 @@ Now push the notification:
 
 ## Reconnection
 
-If network goes down or something unexpected happens the `gun` connection with APNs will go down. In that case `apns4erl` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns4erl` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
+If network goes down or something unexpected happens the `gun` connection with APNs will go down. In that case `apns_erlang` will send a message `{reconnecting, ServerPid}` to the client process, that means `apns_erlang` lost the connection and it is trying to reconnect. Once the connection has been recover a `{connection_up, ServerPid}` message will be send.
 
 
 We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time adding the `backoff_ceiling` variable on the `config` file. By default it is set to 10 (seconds).
@@ -209,11 +201,11 @@ We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time 
 
 Apple recommends us to keep our connections open and avoid opening and closing very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.
 
-But when closing a connection makes sense `apns4erl` gives us the function `apns:close_connection/1` where the parameter is the connection's name or the connection's `pid`. After using it the name will be available for new connections again (if it was different than `undefined`).
+But when closing a connection makes sense `apns_erlang` gives us the function `apns:close_connection/1` where the parameter is the connection's name or the connection's `pid`. After using it the name will be available for new connections again (if it was different than `undefined`).
 
 ## Feedback
 
-`apns4erl` uses callback to handle feedback. Currently only invalid token causes the callback function to be called.
+`apns_erlang` uses callback to handle feedback. Currently only invalid token causes the callback function to be called.
 Feedback function can be specified in the sys.config file.
 
 It takes the following form.
