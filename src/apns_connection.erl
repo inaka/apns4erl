@@ -201,11 +201,9 @@ generate_token(KeyId, TeamId, PrivKey, Iat) ->
                        , {iat, Iat}
                        ]),
 
-  ?DEBUG("generate_token ~p~n", [{KeyId, TeamId, PrivKey, Iat}]),
   HeaderEncoded = base64url:encode(Header),
   PayloadEncoded = base64url:encode(Payload),
   DataEncoded = <<HeaderEncoded/binary, $., PayloadEncoded/binary>>,
-  ?DEBUG("generate_token encoded ~p~n", [DataEncoded]),
   
   {ok, Key} = file:read_file(PrivKey),
   [ECPrivateKeyPem] = public_key:pem_decode(Key),
@@ -402,18 +400,18 @@ connected( info
          , {gun_response, _, StreamRef, nofin, Status, Headers}
          , StateData) ->
   #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
-  #{name := Name, timeout := Timeout, feedback := Feedback} = Connection,
+  #{timeout := Timeout, feedback := Feedback} = Connection,
   ApnsId = find_header_val(Headers, apns_id),
   Queue1 = lists:keydelete(ApnsId, 1, Queue),
   case gun:await_body(GunConn, StreamRef, Timeout) of
       {ok, Body} ->
-          ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, Body}]),
-          case {Status, Feedback, lists:keyfind(ApnsId, 1, Queue)} of
-              {_, _ , false} -> ok;
+          ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, ApnsId, Body, Queue, Feedback}]),
+          case {Status, Feedback, proplists:get_value(ApnsId, Queue, false)} of
+              {_, _, false} -> ok;
+              {400, {M, F}, DeviceId} ->
+                  process_error(Connection, M, F, DeviceId, Body);
               {410, {M, F}, DeviceId} ->
-                  BodyJson = jsx:decode(Body, [return_maps]),
-                  #{timestamp := Timestamp} = BodyJson,
-                  catch erlang:apply(M, F, [Name, DeviceId, Timestamp]);
+                  process_error(Connection, M, F, DeviceId, Body);
               _ ->
                   ok
           end;
@@ -482,6 +480,21 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%%===================================================================
 %%% Connection getters/setters Functions
 %%%===================================================================
+
+process_error(Connection, M, F, DeviceId, Body) ->
+  BodyJson = jsx:decode(Body, [return_maps]),
+  Reason = maps:get(<<"reason">>, BodyJson, <<"">>),
+  Timestamp = maps:get(<<"timestamp">>, BodyJson, 0),
+  process_error(Connection, M, F, DeviceId, Reason, Timestamp).
+
+process_error(Connection, M, F, DeviceId, <<"BadDeviceToken">>, _) ->
+  Timestamp = os:system_time(seconds),
+  catch erlang:apply(M, F, [Connection, DeviceId, Timestamp]);
+
+process_error(Connection, M, F, DeviceId, <<"Unregistered">>, Timestamp) ->
+  catch erlang:apply(M, F, [Connection, DeviceId, Timestamp]);
+
+process_error(_, _, _, _, _, _) -> ok.
 
 -spec name(connection()) -> name().
 name(#{name := ConnectionName}) ->
@@ -552,6 +565,7 @@ transport_opts(Connection) ->
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
 
 -spec get_headers(apns:headers()) -> list().
 get_headers(Headers) ->
