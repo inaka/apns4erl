@@ -16,6 +16,31 @@ __BINARY_API:__  This lib supports http2. Check [using Legacy Binary API](https:
 - You must have installed an updated Openssl version or, at least, be sure it supports TLS 1.2+. New APNs server only supports connections over TLS 1.2+.
 - Erlang R21
 
+### How to compile:
+
+`apns_erlang` user `erlang.mk` as make system. To compile
+
+    $ make
+    
+To generate release
+
+    $ make rel
+    
+### How to use with rebar:
+
+You can use `apns_erlang` as a dependency in your rebar.config:
+
+    {deps , [
+        {apns, ".*", {git, "https://github.com/softwarejoint/apns_erlang", {tag, "1.2.0"}}}
+    ]}.
+
+### How to run the application fcm-erlang:
+
+`make rel` will create a release under `_rel/apns` directory. 
+
+    $ cd _rel/apns
+    $ bin/apns console
+    
 ## How to use it?
 
 Checkout the sample config file in config/ directory.
