@@ -70,7 +70,7 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
 ```erlang
 #{ token_keyfile   		=> path()
  , token_kid   			=> binary()
- , team_id				=> binary()
+ , team_id			=> binary()
  }.
 ```
 
@@ -84,7 +84,7 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
 
 ```erlang
 #{ certfile   			=> path()
- , keyfile				=> path()
+ , keyfile			=> path()
  }.
 ```
 
@@ -96,7 +96,7 @@ Alternatively, you can supply a cert binary in `certdata` and a `keydata`
 
 ```erlang
 #{ certdata   			=> binary()
- , keydata				=> keydata()
+ , keydata			=> keydata()
  }.
 ```
 
@@ -106,9 +106,9 @@ In above connection option following config variables can be specified.
 
 ```erlang
 #{ apple_port 			=> integer()
- , timeout				=> integer()
+ , timeout			=> integer()
  `Refer Reconnection Option`
- `Refer Header Option`
+ `Refer Header Options`
   }.
 ```
 
@@ -173,7 +173,7 @@ We will use `apns:push_notification/3,4`.
 
 We will need the connection, a notification, the device ID and some http2 headers. The connection is the `atom` we used when we executed `apns:connect/2` for setting a name or its `pid`, the device ID is provided by Apple, the notification is a `map` with the data we want to send, that map will be encoded to json later and the http2 headers can be explicitly sent as a parameter using `apns:push_notification/4` or can be defined at the `config` file, in that case we would use `apns:push_notification/3`.
 
-This is the `headers` format:	**_`Header Option`_**
+This is the `headers` format:	**_`Header Options`_**
 
 
 ```erlang
@@ -249,7 +249,7 @@ We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time 
 
 ```erlang
 #{ 
-	backoff_ceiling		=> integer()
+    backoff_ceiling		=> integer()
  }.
 ``` 
 
