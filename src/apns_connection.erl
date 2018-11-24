@@ -67,6 +67,7 @@
 
 -type name()         :: atom().
 -type host()         :: string() | inet:ip_address().
+-type env()          :: development | production.
 -type path()         :: string().
 -type notification() :: binary().
 -type type()         :: certdata | cert | token.
@@ -80,14 +81,13 @@
                          , password   => iodata()
                          }.
 -type connection()   :: #{ name       := name()
-                         , apple_host := host()
+                         , env        := env()
                          , apple_port := inet:port_number()
                          , certdata   => binary()
                          , certfile   => path()
                          , keydata    => keydata()
                          , keyfile    => path()
                          , timeout    => integer()
-                         , type       := type()
                          , proxy_info => proxy_info()
                          }.
 
@@ -126,13 +126,12 @@ default_connection(certdata, ConnectionName) ->
   {ok, Key} = application:get_env(apns, keydata),
 
   #{ name       => ConnectionName
-   , apple_host => host(Env)
+   , env        => Env
    , apple_port => Port
    , certdata   => Cert
    , keydata    => Key
    , timeout    => Timeout
    , feedback   => FeedBack
-   , type       => certdata
   };
 default_connection(cert, ConnectionName) ->
   Env = application:get_env(apns, env, development),
@@ -144,13 +143,12 @@ default_connection(cert, ConnectionName) ->
   {ok, Keyfile} = application:get_env(apns, keyfile),
 
   #{ name       => ConnectionName
-   , apple_host => host(Env)
+   , env        => Env
    , apple_port => Port
    , certfile   => Certfile
    , keyfile    => Keyfile
    , timeout    => Timeout
    , feedback   => FeedBack
-   , type       => cert
   };
 default_connection(token, ConnectionName) ->
   Env = application:get_env(apns, env, development),
@@ -163,7 +161,7 @@ default_connection(token, ConnectionName) ->
   {ok, TeamID} = application:get_env(apns, team_id),
   
   #{ name       => ConnectionName
-   , apple_host => host(Env)
+   , env        => Env
    , apple_port => Port
    , token_kid  => list_to_binary(TokenID)
    , team_id    => list_to_binary(TeamID)
@@ -172,7 +170,6 @@ default_connection(token, ConnectionName) ->
    , jwt_iat    => 0
    , timeout    => Timeout
    , feedback   => FeedBack
-   , type       => token
   }.
 
 verify_token(#{jwt_token := <<"">>} = Connection) ->
@@ -182,7 +179,9 @@ verify_token(#{jwt_iat := Iat} = Connection) ->
   Now = apns_utils:epoch(),
   if (Now - Iat - 3500) > 0 -> update_token(Connection);
      true -> Connection
-  end.
+  end;
+verify_token(Connection) ->
+  Connection.
 
 update_token(#{token_kid := KeyId,
                team_id := TeamId,
@@ -369,12 +368,12 @@ connected( cast
 
   #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
 
-  {Conn, Hdrs} = case type(Connection) of 
-    token ->
+  {Conn, Hdrs} = case maps:is_key(jwt_token, Connection) of
+    true ->
       Connection1 = verify_token(Connection),
       Headers1 = add_authorization_header(Headers, auth_token(Connection1)),
       {Connection1, Headers1};
-    _ ->
+    false ->
       {Connection, Headers}
   end,
 
@@ -500,12 +499,10 @@ process_error(_, _, _, _, _, _) -> ok.
 name(#{name := ConnectionName}) ->
   ConnectionName.
 
-host(development) ->
+host(#{env := development}) ->
   "api.development.push.apple.com";
-host(production) ->
-  "api.push.apple.com";
-host(#{apple_host := Host}) ->
-  Host.
+host(_) ->
+  "api.push.apple.com".
 
 -spec port(connection()) -> inet:port_number().
 port(#{apple_port := Port}) ->
@@ -527,10 +524,6 @@ keydata(#{keydata := Key}) ->
 keyfile(#{keyfile := Keyfile}) ->
   Keyfile.
 
--spec type(connection()) -> type().
-type(#{type := Type}) ->
-  Type.
-
 -spec auth_token(connection()) -> binary().
 auth_token(#{jwt_token := Token}) ->
   Token.
@@ -544,23 +537,20 @@ proxy(_) ->
 uuid() ->
   uuid:uuid_to_string(uuid:get_v4(), binary_standard).
 
-transport_opts(Connection) ->
-  case type(Connection) of
-    certdata ->
-      Cert = certdata(Connection),
-      Key = keydata(Connection),
-      [{cert, Cert}, {key, Key}];
-    cert ->
-      Certfile = certfile(Connection),
-      Keyfile = keyfile(Connection),
-      [{certfile, Certfile}, {keyfile, Keyfile}];
-    token ->
-      CaCertFile = filename:join([code:priv_dir(apns), "GeoTrust_Global_CA.pem"]),
-      [{cacertfile, CaCertFile},
-       {server_name_indication, disable},
-       {crl_check, false},
-       {verify, verify_none}]
-  end.
+type(#{certfile := _}) -> cert;
+type(#{certdata := _}) -> certdata;
+type(_) -> token.
+
+transport_opts(#{certfile := Certfile, keyfile := Keyfile}) ->
+    [{certfile, Certfile}, {keyfile, Keyfile}];
+transport_opts(#{certdata := Cert, keydata:= Key}) ->
+    [{cert, Cert}, {key, Key}];
+transport_opts(_) ->
+    CaCertFile = filename:join([code:priv_dir(apns), "GeoTrust_Global_CA.pem"]),
+    [{cacertfile, CaCertFile},
+     {server_name_indication, disable},
+     {crl_check, false},
+     {verify, verify_none}].
 
 %%%===================================================================
 %%% Internal Functions

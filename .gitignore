@@ -1,4 +1,6 @@
 .eunit
+*.swo
+*.swp
 .erlang.mk/
 *.d
 cert/
