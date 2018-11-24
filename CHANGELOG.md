@@ -1,5 +1,16 @@
 # Change Log
 
+## [2.4.0](https://github.com/softwarejoint/apns_erlang/tree/2.3.0) (2018-11-24)
+[Full Changelog](https://github.com/softwarejoint/apns_erlang/2.3.0...2.4.0)
+
+**Changes**
+
+- Manage Auth token internally
+- Manager http host by env var
+- Feedback based on Callback
+- Manage Apns id internally to match to device id
+- Make push request async
+
 ## [2.3.0](https://github.com/inaka/apns4erl/tree/2.3.0) (2018-10-12)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/2.2.1...2.3.0)
 
