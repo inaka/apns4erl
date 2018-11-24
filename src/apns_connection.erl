@@ -27,6 +27,7 @@
 %% API
 -export([ start_link/2
         , default_connection/2
+        , new_apns_id/0
         , name/1
         , host/1
         , port/1
@@ -368,21 +369,30 @@ connected( cast
 
   #{connection := Connection, queue := Queue, gun_pid := GunConn} = StateData,
 
-  {Conn, Hdrs} = case maps:is_key(jwt_token, Connection) of
+  {Conn, Headers1} = case maps:is_key(jwt_token, Connection) of
     true ->
       Connection1 = verify_token(Connection),
-      Headers1 = add_authorization_header(Headers, auth_token(Connection1)),
-      {Connection1, Headers1};
+      Hdrs = add_authorization_header(Headers, auth_token(Connection1)),
+      {Connection1, Hdrs};
     false ->
       {Connection, Headers}
   end,
 
-  HdrsList = get_headers(Hdrs),
+  {Queue1, Headers2} = case maps:get(apns_id, Headers1, undefined) of
+    undefined ->
+        UUID = new_apns_id(),
+        {
+          lists:sublist([{UUID, DeviceId} | Queue], 100),
+          Headers1#{apns_id => UUID}
+        };
+    _ ->
+        {Queue, Headers1}
+  end,
+    
+  HdrsList = get_headers(Headers2),
   Path = get_device_path(DeviceId),
   _StreamRef = gun:post(GunConn, Path, HdrsList, Notification),
-  ApnsId = find_header_val(HdrsList, apns_id),
 
-  Queue1 = lists:sublist([{ApnsId, DeviceId} | Queue], 100),
   StateData1 = StateData#{connection => Conn, queue => Queue1},
   {keep_state, StateData1};
 
@@ -405,8 +415,7 @@ connected( info
   case gun:await_body(GunConn, StreamRef, Timeout) of
       {ok, Body} ->
           ?DEBUG("Received Data: packet: ~p~n", [{Status, Headers, ApnsId, Body, Queue, Feedback}]),
-          case {Status, Feedback, proplists:get_value(ApnsId, Queue, false)} of
-              {_, _, false} -> ok;
+          case {Status, Feedback, proplists:get_value(ApnsId, Queue, ApnsId)} of
               {400, {M, F}, DeviceId} ->
                   process_error(Connection, M, F, DeviceId, Body);
               {410, {M, F}, DeviceId} ->
@@ -534,7 +543,7 @@ proxy(#{proxy_info := Proxy}) ->
 proxy(_) ->
   undefined.
 
-uuid() ->
+new_apns_id() ->
   uuid:uuid_to_string(uuid:get_v4(), binary_standard).
 
 type(#{certfile := _}) -> cert;
@@ -568,7 +577,6 @@ get_headers(Headers) ->
          ],
   F = fun({ActualHeader, Key, Def}) ->
       case {Key, maps:get(Key, Headers, Def)} of
-          {apns_id, undefined} -> [{ActualHeader, uuid()}];
           {_, undefined} -> [];
           {_, Value} -> [{ActualHeader, Value}]
     end
