@@ -204,24 +204,12 @@ Lets send a Notification.
 3> Notification = #{aps => #{alert => <<"you have a message">>}}.
 #{aps => #{alert => <<"you have a message">>}}
 4> apns:push_notification(my_first_connection, DeviceId, Notification).
-{200,
- [{<<"apns-id">>,<<"EFDE0D9D-F60C-30F4-3FF1-86F3B90BE434">>}],
- no_body}
+ok
 5> apns:push_notification(Pid, DeviceId, Notification).
-{200,
- [{<<"apns-id">>,<<"EFDE0D9D-F60C-30F4-3FF1-86F3B90BE654">>}],
- no_body}
+ok
 ```
 
-The result is the response itself, its format is:
-
-```erlang
--type response()  :: { integer()          % HTTP2 Code
-                     , [term()]           % Response Headers
-                     , [term()] | no_body % Response Body
-                     } | timeout.
-```
-
+This library works asynchronously. See `Feedback Option` for feedback.
 And that's all.
 
 ## `Reconnection Option`
