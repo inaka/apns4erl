@@ -31,7 +31,7 @@ To generate release
 You can use `apns_erlang` as a dependency in your rebar.config:
 
     {deps , [
-        {apns, ".*", {git, "https://github.com/softwarejoint/apns_erlang", {tag, "2.3.2"}}}
+        {apns, ".*", {git, "https://github.com/softwarejoint/apns_erlang", {tag, "2.4.0"}}}
     ]}.
 
 ### How to run the application apns_erlang:
@@ -48,6 +48,8 @@ $ bin/apns console
 ## How to configure it?
 
 Checkout the sample config file in config/ directory.
+
+You can find more info [here](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html)
 
 The other way is send all that info as a parameter to `apns:connect/1` function encapsulated in a `apns_connection:connection()` structure:
 
@@ -79,6 +81,8 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
 - `token_kid` is the token key file id when generated. It is the last string after `_` in auth `token_keyfile` file name. Ex: `APNsAuthKey_KEYID12345.p8`, `token_kid` is `KEYID12345`.
 
 - `team_id` is Apple developer TEAM id as on apple developer console.
+
+Library maintains token signing and hourly renewal of signature key.
 
 #### `Connection Options` for `Provider Certificate`
 
@@ -200,48 +204,13 @@ Lets send a Notification.
 3> Notification = #{aps => #{alert => <<"you have a message">>}}.
 #{aps => #{alert => <<"you have a message">>}}
 4> apns:push_notification(my_first_connection, DeviceId, Notification).
-{200,
- [{<<"apns-id">>,<<"EFDE0D9D-F60C-30F4-3FF1-86F3B90BE434">>}],
- no_body}
+ok
 5> apns:push_notification(Pid, DeviceId, Notification).
-{200,
- [{<<"apns-id">>,<<"EFDE0D9D-F60C-30F4-3FF1-86F3B90BE654">>}],
- no_body}
+ok
 ```
 
-The result is the response itself, its format is:
-
-```erlang
--type response()  :: { integer()          % HTTP2 Code
-                     , [term()]           % Response Headers
-                     , [term()] | no_body % Response Body
-                     } | timeout.
-```
-
+This library works asynchronously. See `Feedback Option` for feedback.
 And that's all.
-
-## Push Notifications over `Provider Authentication Tokens` connections
-
-This is the other way APNs allows us to send notifications. In this case we don't need a certificate but we will need a `p8` file with the private key we will use to sign the token. Lets assume we've got the file  `APNsAuthKey_KEYID12345.p8` from Apple. We then have to fill the `config` file key `token_keyfile` with the path to that file.
-
-We will need a `kid` value, this is the key identifier. In our case is the last 10 chars of the file name (`KEYID123456`). We will need also the `iss` value, this is the Team Id, that can be checked on your Apple's Developer account, in our case it will be `THEATEAM`. And that's it.
-
-You can find more info [here](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html)
-
-Library generates and maintains tokens based on values provided in sys.config file.
-
-Now push the notification:
-
-```erlang
-12> DeviceId = <<"a0dc63fb059cb9c13b03e5c974af3dd33d67fed4147da8c5ada0626439e18935">>.
-<<"a0dc63fb059cb9c13b03e5c974af3dd33d67fed4147da8c5ada0626439e18935">>
-13> Notification = #{aps => #{alert => <<"you have a message">>}}.
-#{aps => #{alert => <<"you have a message">>}}
-14> apns:push_notification(my_second_connection, DeviceId, Notification).
-{200,
- [{<<"apns-id">>,<<"EBC03BF9-A784-FDED-34F7-5A8D859DA977">>}],
- no_body}
-```
 
 ## `Reconnection Option`
 
