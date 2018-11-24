@@ -229,7 +229,7 @@ gun_pid(ConnectionId) ->
 -spec push_notification( name() | pid()
                        , apns:device_id()
                        , notification()
-                       , apns:headers()) -> apns:response() | {error, not_connection_owner}.
+                       , apns:headers()) -> ok.
 push_notification(ConnectionId, DeviceId, Notification, Headers) ->
   gen_statem:cast(ConnectionId, {push_notification, DeviceId, Notification, Headers}).
 
