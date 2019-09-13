@@ -1,14 +1,31 @@
 # Change Log
 
+## [2.3.1](https://github.com/inaka/apns4erl/tree/2.3.1) (2019-09-13)
+[Full Changelog](https://github.com/inaka/apns4erl/compare/2.3.0...2.3.1)
+
+**Closed issues:**
+
+- Rebar compile issues when included in other projects [\#225](https://github.com/inaka/apns4erl/issues/225)
+- how to send mutiple token to apns in one time? [\#223](https://github.com/inaka/apns4erl/issues/223)
+- Connections using Provider Auth Token [\#222](https://github.com/inaka/apns4erl/issues/222)
+- why push\_notification\_token return "error" [\#214](https://github.com/inaka/apns4erl/issues/214)
+- apns:close\_connection don't closed h2\_connect [\#209](https://github.com/inaka/apns4erl/issues/209)
+
+**Merged pull requests:**
+
+- Add support for new apns-push-type header [\#226](https://github.com/inaka/apns4erl/pull/226) ([essen](https://github.com/essen))
+
 ## [2.3.0](https://github.com/inaka/apns4erl/tree/2.3.0) (2018-10-12)
 [Full Changelog](https://github.com/inaka/apns4erl/compare/2.2.1...2.3.0)
 
 **Closed issues:**
 
 - adding coverage in Travis [\#218](https://github.com/inaka/apns4erl/issues/218)
+- Version bump to 2.3.0 [\#217](https://github.com/inaka/apns4erl/issues/217)
 
 **Merged pull requests:**
 
+- \[\#217\] Version Bump to 2.3.0 [\#221](https://github.com/inaka/apns4erl/pull/221) ([ferigis](https://github.com/ferigis))
 - \[\#218\] integrating with codecov [\#219](https://github.com/inaka/apns4erl/pull/219) ([ferigis](https://github.com/ferigis))
 - Test erlang 21 [\#216](https://github.com/inaka/apns4erl/pull/216) ([getong](https://github.com/getong))
 - Switch apns to use Gun, add support for CONNECT proxies [\#215](https://github.com/inaka/apns4erl/pull/215) ([essen](https://github.com/essen))
