@@ -327,25 +327,33 @@ default_headers(_Config) ->
   {ok, OriginalApnsPriority} = application:get_env(apns, apns_priority),
   {ok, OriginalApnsTopic} = application:get_env(apns, apns_topic),
   {ok, OriginalApnsCollapseId} = application:get_env(apns, apns_collapse_id),
+  {ok, OriginalApnsPushType} = application:get_env(apns, apns_push_type),
 
   ApnsId = "this is the ID",
   ApnsExp = 10,
   ApnsPriority = undefined,
   ApnsTopic = <<"com.example.mycoolapp">>,
   ApnsCollapseId = undefined,
+  ApnsPushType = <<"background">>,
 
   ok = application:set_env(apns, apns_id, ApnsId),
   ok = application:set_env(apns, apns_expiration, ApnsExp),
   ok = application:set_env(apns, apns_priority, ApnsPriority),
   ok = application:set_env(apns, apns_topic, ApnsTopic),
   ok = application:set_env(apns, apns_collapse_id, ApnsCollapseId),
+  ok = application:set_env(apns, apns_push_type, ApnsPushType),
 
   Expected = #{ apns_id => list_to_binary(ApnsId)
               , apns_expiration => list_to_binary(integer_to_list(ApnsExp))
               , apns_topic => ApnsTopic
+              , apns_push_type => ApnsPushType
               },
 
   Expected = apns:default_headers(),
+
+  %% The defaults always include apns_push_type regardless of environment:
+  application:unset_env(apns, apns_push_type),
+  #{apns_push_type := <<"alert">>} = apns:default_headers(),
 
   % turn back the original values
   ok = application:set_env(apns, apns_id, OriginalApnsId),
@@ -353,6 +361,7 @@ default_headers(_Config) ->
   ok = application:set_env(apns, apns_priority, OriginalApnsPriority),
   ok = application:set_env(apns, apns_topic, OriginalApnsTopic),
   ok = application:set_env(apns, apns_collapse_id, OriginalApnsCollapseId),
+  ok = application:set_env(apns, apns_push_type, OriginalApnsPushType),
   ok.
 
 -spec test_coverage(config()) -> ok.

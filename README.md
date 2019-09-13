@@ -45,6 +45,7 @@ First we have to fill our `config` data. There are two ways for do this, one is 
   , {apns_priority,    10}
   , {apns_topic,       "com.example.myapp"}
   , {apns_collapse_id, undefined}
+  , {apns_push_type,   "alert"}
 
   %% Feedback
   , {feedback_host,    "feedback.push.apple.com"}
@@ -150,6 +151,7 @@ This is the `headers` format:
                       , apns_priority    => binary()
                       , apns_topic       => binary()
                       , apns_collapse_id => binary()
+                      , apns_push_type   => binary()
                       , apns_auth_token  => binary()
                       }.
 ```
