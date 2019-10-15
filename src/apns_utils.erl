@@ -20,7 +20,7 @@
 -author("Felipe Ripoll <felipe@inakanetworks.com>").
 
 % API
--export([ sign/1
+-export([ sign/2
         , epoch/0
         , bin_to_hexstr/1
         , seconds_to_timestamp/1
@@ -32,9 +32,8 @@
 %%%===================================================================
 
 %% Signs the given binary.
--spec sign(binary()) -> binary().
-sign(Data) ->
-  {ok, KeyPath} = application:get_env(apns, token_keyfile),
+-spec sign(binary(), string()) -> binary().
+sign(Data, KeyPath) ->
   Command = "printf '" ++
             binary_to_list(Data) ++
             "' | openssl dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
