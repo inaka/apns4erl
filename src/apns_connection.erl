@@ -89,6 +89,7 @@
                          , type       := type()
                          , proxy_info => proxy_info()
                          , http_opts  => http_opts()
+                         , gun        => gun:opts()
                          }.
 
 -type state()        :: #{ connection      := connection()
@@ -501,12 +502,5 @@ backoff(N, Ceiling) ->
   end.
 
 add_gun_opts(Connection, Opts) ->
-    maps:merge(maps:with(gun_opts_keys(), Connection), Opts).
-
-gun_opts_keys() ->
-    [ connect_timeout
-    , http_opts
-    , http2_opts
-    , retry_timeout
-    , trace
-    , transport ].
+  GunOpts = maps:get(gun, Connection, #{}),
+  maps:merge(GunOpts, Opts).

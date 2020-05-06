@@ -138,7 +138,7 @@ connect_with_gun_param(K, V) ->
   ConnectionName = ?FUNCTION_NAME,
   Connection = apns_connection:default_connection(cert, ConnectionName),
   ok = mock_gun_open_param(K),
-  {ok, ServerPid} = apns:connect(Connection#{K => V}),
+  {ok, ServerPid} = apns:connect(Connection#{gun => #{K => V}}),
   true = is_process_alive(ServerPid),
   ok = close_connection(ServerPid),
   [_] = meck:unload(),
