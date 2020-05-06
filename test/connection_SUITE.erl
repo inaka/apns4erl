@@ -10,6 +10,7 @@
         , certdata_keydata_connection/1
         , connect/1
         , connect_without_name/1
+        , connect_with_gun_params/1
         , gun_connection_lost/1
         , gun_connection_lost_timeout/1
         , gun_connection_killed/1
@@ -32,6 +33,7 @@ all() ->  [ default_connection
           , certdata_keydata_connection
           , connect
           , connect_without_name
+          , connect_with_gun_params
           , gun_connection_lost
           , gun_connection_lost_timeout
           , gun_connection_killed
@@ -120,6 +122,27 @@ connect_without_name(_Config) ->
   true = is_process_alive(ServerPid),
   ok = close_connection(ServerPid),
   [_] = meck:unload(),
+  ok.
+
+-spec connect_with_gun_params(config()) -> ok.
+connect_with_gun_params(_Config) ->
+  connect_with_gun_param(connect_timeout, 10000),
+  connect_with_gun_param(http_opts, #{keepalive => 10000}),
+  connect_with_gun_param(http2_opts, #{keepalive => 10000}),
+  connect_with_gun_param(retry_timeout, 10000),
+  connect_with_gun_param(trace, true),
+  connect_with_gun_param(transport, tls).
+
+-spec connect_with_gun_param(atom(), any()) -> ok.
+connect_with_gun_param(K, V) ->
+  ConnectionName = ?FUNCTION_NAME,
+  Connection = apns_connection:default_connection(cert, ConnectionName),
+  ok = mock_gun_open_param(K),
+  {ok, ServerPid} = apns:connect(Connection#{K => V}),
+  true = is_process_alive(ServerPid),
+  ok = close_connection(ServerPid),
+  [_] = meck:unload(),
+  ct:log("Gun param ~p => ~p passed correctly", [K, V]),
   ok.
 
 -spec gun_connection_lost(config()) -> ok.
@@ -394,10 +417,27 @@ test_function() ->
 -spec mock_gun_open() -> ok.
 mock_gun_open() ->
   meck:expect(gun, open, fun(_, _, _) ->
+    mimick_gun_open()
+  end).
+
+-spec mimick_gun_open() -> {ok, pid()}.
+mimick_gun_open() ->
     GunPid = spawn(fun test_function/0),
     self() ! {gun_up, GunPid, http2},
-    {ok, GunPid}
-  end).
+    {ok, GunPid}.
+
+-spec mock_gun_open_param(atom()) -> ok.
+mock_gun_open_param(Key) ->
+    meck:expect(
+      gun, open,
+      fun(_, _, Opts) ->
+              case maps:is_key(Key, Opts) of
+                  true ->
+                      mimick_gun_open();
+                  false ->
+                      error({missing_key, Key})
+              end
+      end).
 
 -spec mock_gun_post() -> ok.
 mock_gun_post() ->
