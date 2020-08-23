@@ -268,3 +268,6 @@ The response for both functions will be a list of `feedback()`
 -type feedback() :: {calendar:datetime(), string()}.
 ```
 Where the first element in the tuple is the date when the device uninstalled the app and the second element is the Device Id.
+
+### Changelog Generation
+If you want to generate a new release of this project, you'll need to update the [CHANGELOG.md](CHANGELOG.md) file. We generally do it using `github_changelog_generator`. This project needs a special option passed to it, tho: `--exclude-tags-regex '1*'`. Otherwise, it will fail since version 2 releases started from a clean HEAD and therefore have nothing in common with the ones for version 1.
