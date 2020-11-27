@@ -28,7 +28,7 @@ If you find any **bugs** or have a **problem** while using Apns4erl, please [ope
 
 First we have to fill our `config` data. There are two ways for do this, one is filling a `config` file. This is an example you can find at `test/test.config`:
 
-```
+```erlang
 {
   apns,
   [ {apple_host,       "api.development.push.apple.com"}
