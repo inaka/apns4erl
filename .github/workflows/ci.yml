@@ -1,5 +1,5 @@
 ---
-name: CI for apns4erl
+name: build
 on:
   push:
     branches:
