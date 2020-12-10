@@ -18,6 +18,6 @@ case "${1:?}" in
         Rebar3="${2:?}"
         "${Rebar3:?}" as test xref
         "${Rebar3:?}" as test dialyzer
-        "${Rebar3:?}" as test ct
+        "${Rebar3:?}" ct
         ;;
 esac
