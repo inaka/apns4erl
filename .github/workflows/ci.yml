@@ -11,14 +11,16 @@ jobs:
   ci:
     name: Run checks and tests over ${{matrix.otp_vsn}} and ${{matrix.os}}
     runs-on: ${{matrix.os}}
-    container:
-      image: erlang:${{matrix.otp_vsn}}
     strategy:
       matrix:
-        otp_vsn: [19.3, 20.3, 21.3, 22.3, 23.0]
+        otp_vsn: [20, 21, 22, 23]
         os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
+      - uses: erlef/setup-beam@v1.7.0
+        with:
+          otp-version: ${{matrix.otp_vsn}}
+          rebar3-version: '3.14'
       - run: rebar3 as test xref
       - run: rebar3 as test dialyzer
       - run: rebar3 as test ct
