@@ -447,7 +447,7 @@ get_headers(Headers) ->
          , {<<"apns-expiration">>, apns_expiration}
          , {<<"apns-priority">>, apns_priority}
          , {<<"apns-topic">>, apns_topic}
-         , {<<"apns-collapse_id">>, apns_collapse_id}
+         , {<<"apns-collapse-id">>, apns_collapse_id}
          , {<<"apns-push-type">>, apns_push_type}
          , {<<"authorization">>, apns_auth_token}
          ],
