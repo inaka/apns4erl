@@ -68,6 +68,7 @@
 -type path()         :: string().
 -type notification() :: binary().
 -type type()         :: certdata | cert | token.
+-type http_opts()    :: #{ keepalive => non_neg_integer() }.
 -type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
                          'PrivateKeyInfo'
                         , binary()}.
@@ -87,6 +88,8 @@
                          , timeout    => integer()
                          , type       := type()
                          , proxy_info => proxy_info()
+                         , http_opts  => http_opts()
+                         , gun        => gun:opts()
                          }.
 
 -type state()        :: #{ connection      := connection()
@@ -227,25 +230,30 @@ open_origin(internal, _, #{connection := Connection} = StateData) ->
   Host = host(Connection),
   Port = port(Connection),
   TransportOpts = transport_opts(Connection),
+  Opts0 = #{ protocols      => [http2]
+           , transport_opts => TransportOpts
+           , retry          => 0
+           },
+  Opts = add_gun_opts(Connection, Opts0),
   {next_state, open_common, StateData,
     {next_event, internal, { Host
                            , Port
-                           , #{ protocols      => [http2]
-                              , transport_opts => TransportOpts
-                              , retry          => 0
-                              }}}}.
+                           , Opts}}}.
 
 -spec open_proxy(_, _, _) -> _.
 open_proxy(internal, _, StateData) ->
   #{connection := Connection} = StateData,
   #{type := connect, host := ProxyHost, port := ProxyPort} = proxy(Connection),
+  Opts0 = #{ protocols => [http]
+           , transport => tcp
+           , retry     => 0
+           },
+  Opts = add_gun_opts(Connection, Opts0),
   {next_state, open_common, StateData,
     {next_event, internal, { ProxyHost
                            , ProxyPort
-                           , #{ protocols => [http]
-                              , transport => tcp
-                              , retry     => 0
-                              }}}}.
+                           , Opts
+                           }}}.
 
 %% This function exists only to make Elvis happy.
 %% I do not think it makes things any easier to read.
@@ -492,3 +500,7 @@ backoff(N, Ceiling) ->
       NString = float_to_list(NextN, [{decimals, 0}]),
       list_to_integer(NString)
   end.
+
+add_gun_opts(Connection, Opts) ->
+  GunOpts = maps:get(gun, Connection, #{}),
+  maps:merge(GunOpts, Opts).

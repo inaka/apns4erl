@@ -65,6 +65,7 @@ The other way is send all that info as a parameter to `apns:connect/1` function 
  , keyfile    => path()
  , timeout    => integer()
  , type       := type()
+ , gun        => gun:opts()
  }.
 ```
 
@@ -136,6 +137,13 @@ certfile => "priv/cert2.pem", keyfile => "priv/key2-noenc.pem", type => cert}).
 3> apns:connect(token, my_second_connection).
 {ok,<0.132.0>}
 ```
+
+## Passing options specific to Gun
+
+The actual connection is handled by the [gun](https://github.com/ninenines/gun) library,
+which supports some options of its own. You can pass options specific to `gun` in
+the `connection` struct using `gun => GunOpts`. See the `gun` documentation for
+examples.
 
 ## Push Notifications over `Provider Certificate` connections
 
