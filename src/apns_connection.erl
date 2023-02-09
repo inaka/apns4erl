@@ -230,9 +230,10 @@ open_origin(internal, _, #{connection := Connection} = StateData) ->
   {next_state, open_common, StateData,
     {next_event, internal, { Host
                            , Port
-                           , #{ protocols      => [http2]
-                              , transport_opts => TransportOpts
-                              , retry          => 0
+                           , #{ protocols  => [http2]
+                              , tls_opts   => TransportOpts
+                              , http2_opts => #{keepalive => 5000}
+                              , retry      => 0
                               }}}}.
 
 -spec open_proxy(_, _, _) -> _.
@@ -244,6 +245,7 @@ open_proxy(internal, _, StateData) ->
                            , ProxyPort
                            , #{ protocols => [http]
                               , transport => tcp
+                              , http_opts => #{keepalive => infinity}
                               , retry     => 0
                               }}}}.
 
