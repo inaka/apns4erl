@@ -242,11 +242,13 @@ open_origin(internal, _, #{connection := Connection} = StateData) ->
   Host = host(Connection),
   Port = port(Connection),
   TransportOpts = transport_opts(Connection),
+  TlsOpts = tls_opts(Connection),
   {next_state, open_common, StateData,
     {next_event, internal, { Host
                            , Port
                            , #{ protocols      => [http2]
                               , http2_opts     => TransportOpts
+                              , tls_opts       => TlsOpts
                               , retry          => 0
                               }}}}.
 
@@ -590,6 +592,17 @@ transport_opts(Connection) ->
     token ->
       %% we need to know settings, http2 opt
       #{notify_settings_changed => true}
+  end.
+
+
+tls_opts(Connection) ->
+  case type(Connection) of
+    certdata ->
+      [{verify, verify_peer}];
+    cert ->
+      [{verify, verify_peer}];
+    token ->
+      [{verify, verify_none}]
   end.
 
 %%%===================================================================
