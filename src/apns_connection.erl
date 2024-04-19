@@ -241,13 +241,13 @@ open_connection(internal, _, #{connection := Connection} = StateData) ->
 open_origin(internal, _, #{connection := Connection} = StateData) ->
   Host = host(Connection),
   Port = port(Connection),
-  TransportOpts = transport_opts(Connection),
   TlsOpts = tls_opts(Connection),
+  Http2Opts = http2_opts(),
   {next_state, open_common, StateData,
     {next_event, internal, { Host
                            , Port
                            , #{ protocols      => [http2]
-                              , http2_opts     => TransportOpts
+                              , http2_opts     => Http2Opts
                               , tls_opts       => TlsOpts
                               , retry          => 0
                               }}}}.
@@ -291,12 +291,14 @@ proxy_connect_to_origin(internal, on_connect, StateData) ->
   #{connection := Connection, gun_pid := GunPid} = StateData,
   Host = host(Connection),
   Port = port(Connection),
-  TransportOpts = transport_opts(Connection),
+  TlsOpts = tls_opts(Connection),
+  Http2Opts = http2_opts(),
   Destination0 = #{ host => Host
                   , port => Port
                   , protocol => http2
+                  , http2_opts => Http2Opts
                   , transport => tls
-                  , tls_opts => TransportOpts
+                  , tls_opts => TlsOpts
                   },
   Destination = case proxy(Connection) of
     #{ username := Username, password := Password } ->
@@ -571,39 +573,33 @@ proxy(_) ->
 
 -spec default_max_gun_streams(connection()) -> non_neg_integer() | infinity.
 default_max_gun_streams(Setts) ->
-    case type(Setts) of
-        token -> 1; %% at start, for token we should set 1
-        _     -> 100
-    end.
-
-
-transport_opts(Connection) ->
-  case type(Connection) of
-    certdata ->
-      Cert = certdata(Connection),
-      Key = keydata(Connection),
-      %% XXX: why is proplist here?
-      [{cert, Cert}, {key, Key}];
-    cert ->
-      Certfile = certfile(Connection),
-      Keyfile = keyfile(Connection),
-      %% XXX: why is proplist here?
-      [{certfile, Certfile}, {keyfile, Keyfile}];
-    token ->
-      %% we need to know settings, http2 opt
-      #{notify_settings_changed => true}
+  case type(Setts) of
+    token -> 1; %% at start, for token we should set 1
+    _     -> 100
   end.
-
 
 tls_opts(Connection) ->
   case type(Connection) of
     certdata ->
-      [{verify, verify_peer}];
+      Cert = certdata(Connection),
+      Key = keydata(Connection),
+      %% proplist here, because it goes to ssl:connect/3 (by gun)
+      [ {cert, Cert}
+      , {key, Key}
+      , {verify, verify_peer} ];
     cert ->
-      [{verify, verify_peer}];
+      Certfile = certfile(Connection),
+      Keyfile = keyfile(Connection),
+      [ {certfile, Certfile}
+      , {keyfile, Keyfile}
+      , {verify, verify_peer} ];
     token ->
-      [{verify, verify_none}]
+      [ {verify, verify_none} ] 
   end.
+
+http2_opts() ->
+      %% we need to know settings (from APN server), gun expects map
+      #{notify_settings_changed => true}.
 
 %%%===================================================================
 %%% Internal Functions
@@ -649,16 +645,6 @@ send_push(GunPid, DeviceId, HeadersMap, Notification) ->
   Headers = get_headers(HeadersMap),
   Path = get_device_path(DeviceId),
   gun:post(GunPid, Path, Headers, Notification).
-
-  %% case gun:await(GunPid, StreamRef, Timeout) of
-  %%     {response, fin, Status, ResponseHeaders} ->
-  %%       {Status, ResponseHeaders, no_body};
-  %%     {response, nofin, Status, ResponseHeaders} ->
-  %%       {ok, Body} = gun:await_body(GunPid, StreamRef, Timeout),
-  %%       DecodedBody = jsx:decode(Body, [{return_maps, false}]),
-  %%       {Status, ResponseHeaders, DecodedBody};
-  %%     {error, timeout} -> timeout
-  %% end.
 
 -spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
 backoff(N, Ceiling) ->
