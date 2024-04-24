@@ -594,8 +594,8 @@ tls_opts(Connection) ->
   end.
 
 http2_opts() ->
-      %% we need to know settings (from APN server), gun expects map
-      #{notify_settings_changed => true}.
+  %% we need to know settings (from APN server), gun expects map
+  #{notify_settings_changed => true}.
 
 %%%===================================================================
 %%% Internal Functions
