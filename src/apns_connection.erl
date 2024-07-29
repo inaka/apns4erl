@@ -96,7 +96,7 @@
                         , stream := gun:stream_ref()
                         , timer := reference()
                         , status := non_neg_integer()
-                        , headers := gun:headers()
+                        , headers := gun:req_headers()
                         , body := binary()
                         }.
 
@@ -635,7 +635,7 @@ get_headers(Headers) ->
 get_device_path(DeviceId) ->
   <<"/3/device/", DeviceId/binary>>.
 
--spec add_authorization_header(apns:headers(), apnd:token()) -> apns:headers().
+-spec add_authorization_header(apns:headers(), apns:token()) -> apns:headers().
 add_authorization_header(Headers, Token) ->
   Headers#{apns_auth_token => <<"bearer ", Token/binary>>}.
 
@@ -659,7 +659,7 @@ backoff(N, Ceiling) ->
 %%%===================================================================
 %%% spawn/3 functions
 %%%===================================================================
--spec reply_errors_and_cancel_timers([stream_data()], term()) -> ok.
+-spec reply_errors_and_cancel_timers(map(), term()) -> ok.
 reply_errors_and_cancel_timers(Streams, Reason) ->
   [reply_error_and_cancel_timer(From, Reason, Tmr) || 
     #{from := From, timer := Tmr} <- maps:values(Streams)],
