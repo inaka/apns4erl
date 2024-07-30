@@ -292,11 +292,9 @@ proxy_connect_to_origin(internal, on_connect, StateData) ->
   Host = host(Connection),
   Port = port(Connection),
   TlsOpts = tls_opts(Connection),
-  Http2Opts = http2_opts(),
   Destination0 = #{ host => Host
                   , port => Port
-                  , protocol => http2
-                  , http2_opts => Http2Opts
+                  , protocols => [http2]
                   , transport => tls
                   , tls_opts => TlsOpts
                   },
@@ -423,7 +421,7 @@ connected( info
   %% answering with error, remove entry
   #{gun_streams := Streams0} = StateData0,
   case maps:get(StreamRef, Streams0, null) of
-    null -> 
+    null ->
       %% nothing todo
       {keep_state, StateData0};
     StreamData ->
@@ -453,12 +451,12 @@ connected( info
       gun:cancel(GunPid, StreamRef),
       {keep_state, StateData0#{gun_streams => Streams1}};
     error ->
-      %% cant find stream data by stream ref? 
+      %% cant find stream data by stream ref?
       %% may be just answered and removed,
       %% ignoring
       {keep_state, StateData0}
     end;
-connected(info, 
+connected(info,
           {timeout, _GunPid, _StreamRef},
           StateData0) ->
   %% timeout from different connection?
@@ -594,7 +592,7 @@ tls_opts(Connection) ->
       , {keyfile, Keyfile}
       , {verify, verify_peer} ];
     token ->
-      [ {verify, verify_none} ] 
+      [ {verify, verify_none} ]
   end.
 
 http2_opts() ->
@@ -661,7 +659,7 @@ backoff(N, Ceiling) ->
 %%%===================================================================
 -spec reply_errors_and_cancel_timers(map(), term()) -> ok.
 reply_errors_and_cancel_timers(Streams, Reason) ->
-  [reply_error_and_cancel_timer(From, Reason, Tmr) || 
+  [reply_error_and_cancel_timer(From, Reason, Tmr) ||
     #{from := From, timer := Tmr} <- maps:values(Streams)],
   ok.
 
