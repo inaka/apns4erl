@@ -100,7 +100,7 @@
                         , body := binary()
                         }.
 
--type state()        :: #{ connection      := connection()
+-opaque state()      :: #{ connection      := connection()
                          , gun_pid         => pid()
                          , gun_streams     => #{gun:stream_ref() => stream_data()}
                          , max_gun_streams := non_neg_integer()
@@ -110,6 +110,9 @@
                          , backoff         := non_neg_integer()
                          , backoff_ceiling := non_neg_integer()
                          }.
+
+-export_type([keydata/0,
+              state/0]).
 
 %%%===================================================================
 %%% API
@@ -622,9 +625,9 @@ get_headers(Headers) ->
          , {<<"authorization">>, apns_auth_token}
          ],
   F = fun({ActualHeader, Key}) ->
-    case (catch maps:get(Key, Headers)) of
-      {'EXIT', {{badkey, Key}, _}} -> [];
-      Value -> [{ActualHeader, Value}]
+    case maps:find(Key, Headers) of
+      error -> [];
+      {ok, Value} -> [{ActualHeader, Value}]
     end
   end,
   lists:flatmap(F, List).
