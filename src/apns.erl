@@ -59,7 +59,6 @@
                       , apns_push_type   => binary()
                       , apns_auth_token  => binary()
                       }.
--type feedback()  :: apns_feedback:feedback().
 
 %%%===================================================================
 %%% API
@@ -185,7 +184,7 @@ default_headers() ->
   default_headers(Headers, #{apns_push_type => <<"alert">>}).
 
 %% Requests for feedback to APNs. This requires Provider Certificate.
--spec get_feedback() -> [feedback()] | {error, term()} | timeout.
+-spec get_feedback() -> [apns_feedback:feedback()] | {error, term()} | timeout.
 get_feedback() ->
   {ok, Host} = application:get_env(apns, feedback_host),
   {ok, Port} = application:get_env(apns, feedback_port),
@@ -201,7 +200,10 @@ get_feedback() ->
   get_feedback(Config).
 
 %% Requests for feedback to APNs. This requires Provider Certificate.
--spec get_feedback(apns_feedback:feedback_config()) -> [feedback()] | {error, term()} | timeout.
+-spec get_feedback(apns_feedback:feedback_config())
+  -> [apns_feedback:feedback()]
+    | {error, term()}
+    | timeout.
 get_feedback(Config) ->
   apns_feedback:get_feedback(Config).
 
