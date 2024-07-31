@@ -25,7 +25,7 @@
 -export_type([feedback/0, feedback_config/0]).
 
 -type feedback()        :: {calendar:datetime(), string()}.
--type socket()          :: gen_tcp:socket().
+-type socket()          :: ssl:sslsocket().
 -type feedback_config() :: #{ host     := string()
                             , port     := pos_integer()
                             , certfile := string()
