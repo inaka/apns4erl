@@ -23,4 +23,6 @@ jobs:
           rebar3-version: '3.22.1'
       - run: rebar3 as test xref
       - run: rebar3 as test dialyzer
+      - run: rebar3 hank
+      - run: rebar3 lint
       # - run: rebar3 as test ct
