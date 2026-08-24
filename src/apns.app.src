@@ -8,7 +8,6 @@
     kernel,
     stdlib,
     ssl,
-    jsx,
     gun,
     base64url
   ]},

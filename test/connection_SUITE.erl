@@ -15,8 +15,10 @@
         , gun_connection_killed/1
         , push_notification/1
         , push_notification_token/1
+        , push_notification_json_body/1
+        , generate_token_jwt_claims/1
+        , push_notification_from_any_process/1
         , push_notification_timeout/1
-        , restrict_calls_to_owner/1
         , default_headers/1
         , test_coverage/1
         ]).
@@ -37,8 +39,10 @@ all() ->  [ default_connection
           , gun_connection_killed
           , push_notification
           , push_notification_token
+          , push_notification_json_body
+          , generate_token_jwt_claims
+          , push_notification_from_any_process
           , push_notification_timeout
-          , restrict_calls_to_owner
           , default_headers
           , test_coverage
           ].
@@ -130,15 +134,14 @@ gun_connection_lost(_Config) ->
   GunPid = apns_connection:gun_pid(ConnectionName),
   true = is_process_alive(GunPid),
   GunPid ! {crash, ServerPid},
-  ktn_task:wait_for(fun() -> is_process_alive(GunPid) end, false),
-  ktn_task:wait_for(fun() ->
+  wait_for(fun() -> is_process_alive(GunPid) end, false),
+  wait_for(fun() ->
       apns_connection:gun_pid(ConnectionName) == GunPid
     end, false),
   GunPid2 = apns_connection:gun_pid(ConnectionName),
   true = is_process_alive(GunPid2),
   true = (GunPid =/= GunPid2),
   ok = close_connection(ConnectionName),
-  ktn_task:wait_for(fun() -> is_process_alive(GunPid2) end, false),
   [_] = meck:unload(),
   ok.
 
@@ -155,7 +158,7 @@ gun_connection_lost_timeout(_Config) ->
   end),
 
   GunPid ! {crash, ServerPid},
-  ktn_task:wait_for(fun() ->
+  wait_for(fun() ->
       apns_connection:gun_pid(ConnectionName) == GunPid
     end, false),
 
@@ -163,7 +166,7 @@ gun_connection_lost_timeout(_Config) ->
   true = (GunPid =/= GunPid2),
 
   GunPid2 ! {crash, ServerPid},
-  ktn_task:wait_for(fun() ->
+  wait_for(fun() ->
       apns_connection:gun_pid(ConnectionName) == GunPid2
     end, false),
 
@@ -183,14 +186,13 @@ gun_connection_killed(_Config) ->
   GunPid = apns_connection:gun_pid(ConnectionName),
   true = is_process_alive(GunPid),
   exit(GunPid, kill),
-  ktn_task:wait_for(fun() -> is_process_alive(GunPid) end, false),
-  ktn_task:wait_for(fun() ->
+  wait_for(fun() -> is_process_alive(GunPid) end, false),
+  wait_for(fun() ->
       apns_connection:gun_pid(ConnectionName) == GunPid
     end, false),
   GunPid2 = apns_connection:gun_pid(ConnectionName),
   true = (GunPid =/= GunPid2),
   ok = close_connection(ConnectionName),
-  ktn_task:wait_for(fun() -> is_process_alive(GunPid2) end, false),
   [_] = meck:unload(),
   ok.
 
@@ -206,29 +208,26 @@ push_notification(_Config) ->
              },
   Notification = #{<<"aps">> => #{<<"alert">> => <<"you have a message">>}},
   DeviceId = <<"device_id">>,
-  ok = mock_gun_post(),
+  ok = mock_gun_cancel(),
   ResponseCode = 200,
   ResponseHeaders = [{<<"apns-id">>, <<"apnsid">>}],
-  ok = mock_gun_await({response, fin, ResponseCode, ResponseHeaders}),
+  ok = mock_gun_post_responding({fin, ResponseCode, ResponseHeaders}),
   {ResponseCode, ResponseHeaders, no_body} =
     apns:push_notification(ConnectionName, DeviceId, Notification, Headers),
 
   %% Now mock an error from APNs
-  [_] = meck:unload(),
-  ok = mock_gun_post(),
   ErrorCode = 400,
   ErrorHeaders = [{<<"apns-id">>, <<"apnsid2">>}],
   ErrorBody = <<"{\"reason\":\"BadTopic\"}">>,
-  ok = mock_gun_await({response, nofin, ErrorCode, ErrorHeaders}),
-  ok = mock_gun_await_body(ErrorBody),
+  ok = mock_gun_post_responding({nofin, ErrorCode, ErrorHeaders, ErrorBody}),
 
-  {ErrorCode, ErrorHeaders, ErrorBodyDecoded} =
+  {ErrorCode, ErrorHeaders, ErrorBody} =
     apns:push_notification(ConnectionName, DeviceId, Notification),
-  {ErrorCode, ErrorHeaders, ErrorBodyDecoded} =
+  {ErrorCode, ErrorHeaders, ErrorBody} =
     apns:push_notification(ServerPid, DeviceId, Notification),
 
   ok = close_connection(ConnectionName),
-  [_] = meck:unload(),
+  _ = meck:unload(),
   ok.
 
 -spec push_notification_token(config()) -> ok.
@@ -247,10 +246,10 @@ push_notification_token(_Config) ->
   ok = maybe_mock_apns_os(),
   Token = apns:generate_token(<<"TeamId">>, <<"KeyId">>),
 
-  ok = mock_gun_post(),
+  ok = mock_gun_cancel(),
   ResponseCode = 200,
   ResponseHeaders = [{<<"apns-id">>, <<"apnsid2">>}],
-  ok = mock_gun_await({response, fin, ResponseCode, ResponseHeaders}),
+  ok = mock_gun_post_responding({fin, ResponseCode, ResponseHeaders}),
   {ResponseCode, ResponseHeaders, no_body} =
     apns:push_notification_token( ConnectionName
                                 , Token
@@ -258,7 +257,7 @@ push_notification_token(_Config) ->
                                 , Notification
                                 , Headers
                                 ),
-  {ResponseCode, ResponseHeaders, _Body} =
+  {ResponseCode, ResponseHeaders, no_body} =
     apns:push_notification_token( ServerPid
                                 , Token
                                 , DeviceId
@@ -276,10 +275,58 @@ push_notification_token(_Config) ->
   _ = meck:unload(),
   ok.
 
--spec restrict_calls_to_owner(config()) -> ok.
-restrict_calls_to_owner(_Config) ->
+-spec push_notification_json_body(config()) -> ok.
+push_notification_json_body(_Config) ->
   ok = mock_gun_open(),
-  ok = mock_gun_post(),
+  ConnectionName = ?FUNCTION_NAME,
+  {ok, _ServerPid} = apns:connect(cert, ConnectionName),
+  ok = mock_gun_cancel(),
+  ok = mock_gun_post_capturing(self()),
+  Headers = #{apns_topic => <<"net.inaka.myapp">>},
+  DeviceId = <<"device_id">>,
+
+  BinaryKeys = #{<<"aps">> => #{ <<"alert">> => <<"you have a message">>
+                               , <<"badge">> => 3
+                               }},
+  {200, [], no_body} =
+    apns:push_notification(ConnectionName, DeviceId, BinaryKeys, Headers),
+  BinaryKeysBody = pushed_body(),
+  true = is_binary(BinaryKeysBody),
+  BinaryKeys = json:decode(BinaryKeysBody),
+
+  AtomKeys = #{aps => #{alert => <<"hi">>, 'content-available' => 1}},
+  {200, [], no_body} =
+    apns:push_notification(ConnectionName, DeviceId, AtomKeys, Headers),
+  #{<<"aps">> := #{ <<"alert">>             := <<"hi">>
+                  , <<"content-available">> := 1
+                  }} = json:decode(pushed_body()),
+
+  ok = close_connection(ConnectionName),
+  _ = meck:unload(),
+  ok.
+
+-spec generate_token_jwt_claims(config()) -> ok.
+generate_token_jwt_claims(_Config) ->
+  ok = maybe_mock_apns_os(),
+  Token = apns:generate_token(<<"THEATEAM">>, <<"KEYID12345">>),
+  [Header, Payload, Signature] = binary:split(Token, <<".">>, [global]),
+  #{ <<"alg">> := <<"ES256">>
+   , <<"typ">> := <<"JWT">>
+   , <<"kid">> := <<"KEYID12345">>
+   } = json:decode(base64url:decode(Header)),
+  #{ <<"iss">> := <<"THEATEAM">>
+   , <<"iat">> := Iat
+   } = json:decode(base64url:decode(Payload)),
+  true = is_integer(Iat),
+  true = byte_size(Signature) > 0,
+  _ = meck:unload(),
+  ok.
+
+-spec push_notification_from_any_process(config()) -> ok.
+push_notification_from_any_process(_Config) ->
+  ok = mock_gun_open(),
+  ok = mock_gun_cancel(),
+  ok = mock_gun_post_responding({fin, 200, []}),
   Self = self(),
 
   SpawnedPid = spawn(fun() ->
@@ -289,14 +336,23 @@ restrict_calls_to_owner(_Config) ->
 
   ConnectionPid = receive
     {SpawnedPid, ServerPid} -> ServerPid
+  after 5000 ->
+    ct:fail(timeout_waiting_for_connection)
   end,
 
-  {error, not_connection_owner} = apns:push_notification(ConnectionPid, <<"device_id">>, #{}, #{}),
-  {error, not_connection_owner} =
-    apns:push_notification_token(ConnectionPid, <<"token">>, <<"device_id">>, #{}, #{}),
+  Notification = #{<<"aps">> => #{<<"alert">> => <<"from another process">>}},
+  {200, [], no_body} =
+    apns:push_notification(ConnectionPid, <<"device_id">>, Notification, #{}),
+  {200, [], no_body} =
+    apns:push_notification_token( ConnectionPid
+                                , <<"token">>
+                                , <<"device_id">>
+                                , Notification
+                                , #{}
+                                ),
 
   ok = close_connection(ConnectionPid),
-  [_] = meck:unload(),
+  _ = meck:unload(),
   ok.
 
 -spec push_notification_timeout(config()) -> ok.
@@ -307,13 +363,14 @@ push_notification_timeout(_Config) ->
 
   ok = mock_gun_open(),
   ok = mock_gun_post(),
+  ok = mock_gun_cancel(),
   ConnectionName = ?FUNCTION_NAME,
   {ok, _ApnsPid} = apns:connect(cert, ConnectionName),
   Notification = #{<<"aps">> => #{<<"alert">> => <<"another message">>}},
   DeviceId = <<"device_id">>,
-  timeout = apns:push_notification(ConnectionName, DeviceId, Notification),
+  {error, timeout} = apns:push_notification(ConnectionName, DeviceId, Notification),
   ok = close_connection(ConnectionName),
-  [_] = meck:unload(),
+  _ = meck:unload(),
 
   % turn back the original timeout
   ok = application:set_env(apns, timeout, OriginalTimeout),
@@ -383,12 +440,30 @@ test_coverage(_Config) ->
 %% Internal Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec wait_for(fun(() -> term()), term()) -> ok.
+wait_for(Fun, Expected) ->
+  wait_for(Fun, Expected, 50).
+
+-spec wait_for(fun(() -> term()), term(), non_neg_integer()) -> ok.
+wait_for(_Fun, Expected, 0) ->
+  ct:fail({timeout_waiting_for, Expected});
+wait_for(Fun, Expected, Retries) ->
+  case Fun() of
+    Expected ->
+      ok;
+    _ ->
+      ok = timer:sleep(100),
+      wait_for(Fun, Expected, Retries - 1)
+  end.
+
 -spec test_function() -> ok.
 test_function() ->
   receive
     normal           -> ok;
     {crash, Pid}     -> Pid ! {gun_down, self(), http2, closed, [], []};
     _                -> test_function()
+  after 60000 ->
+    test_function()
   end.
 
 -spec mock_gun_open() -> ok.
@@ -405,16 +480,41 @@ mock_gun_post() ->
     make_ref()
   end).
 
--spec mock_gun_await(term()) -> ok.
-mock_gun_await(Result) ->
-  meck:expect(gun, await, fun(_, _, _) ->
-    Result
+-spec mock_gun_post_capturing(pid()) -> ok.
+mock_gun_post_capturing(TestPid) ->
+  meck:expect(gun, post, fun(GunPid, _Path, _Headers, Body) ->
+    StreamRef = make_ref(),
+    TestPid ! {pushed_body, Body},
+    self() ! {gun_response, GunPid, StreamRef, fin, 200, []},
+    StreamRef
   end).
 
--spec mock_gun_await_body(term()) -> ok.
-mock_gun_await_body(Body) ->
-  meck:expect(gun, await_body, fun(_, _, _) ->
-    {ok, Body}
+-spec mock_gun_cancel() -> ok.
+mock_gun_cancel() ->
+  meck:expect(gun, cancel, fun(_, _) -> ok end).
+
+-spec pushed_body() -> binary().
+pushed_body() ->
+  receive
+    {pushed_body, Body} -> Body
+  after 1000 ->
+    ct:fail("gun:post/4 was never called")
+  end.
+
+-spec mock_gun_post_responding({fin, non_neg_integer(), [term()]}
+                              | {nofin, non_neg_integer(), [term()], binary()}) -> ok.
+mock_gun_post_responding({fin, Status, Headers}) ->
+  meck:expect(gun, post, fun(GunPid, _Path, _Headers, _Body) ->
+    StreamRef = make_ref(),
+    self() ! {gun_response, GunPid, StreamRef, fin, Status, Headers},
+    StreamRef
+  end);
+mock_gun_post_responding({nofin, Status, Headers, Body}) ->
+  meck:expect(gun, post, fun(GunPid, _Path, _Headers, _Body) ->
+    StreamRef = make_ref(),
+    self() ! {gun_response, GunPid, StreamRef, nofin, Status, Headers},
+    self() ! {gun_data, GunPid, StreamRef, fin, Body},
+    StreamRef
   end).
 
 -spec maybe_mock_apns_os() -> ok.
@@ -430,7 +530,7 @@ close_connection(ConnectionId) when is_atom(ConnectionId) ->
   close_connection(ConnectionPid);
 close_connection(ConnectionId) when is_pid(ConnectionId) ->
   ok = apns:close_connection(ConnectionId),
-  ktn_task:wait_for(fun() ->
+  wait_for(fun() ->
       is_process_alive(ConnectionId)
     end, false),
   ok.

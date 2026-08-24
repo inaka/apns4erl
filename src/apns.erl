@@ -38,18 +38,20 @@
         ]).
 
 -export_type([ json/0
+             , json_value/0
              , device_id/0
              , response/0
              , token/0
              , headers/0
              ]).
 
--type json()      :: #{binary() => binary() | json()}.
--type device_id() :: binary().
--type response()  :: { integer()          % HTTP2 Code
-                     , [term()]           % Response Headers
-                     , [term()] | no_body % Response Body
-                     } | timeout.
+-type json()       :: #{atom() | binary() => json_value()}.
+-type json_value() :: atom() | number() | binary() | [json_value()] | json().
+-type device_id()  :: binary().
+-type response()   :: { integer()            % HTTP2 Code
+                      , [term()]             % Response Headers
+                      , binary() | no_body   % Response Body
+                      } | {error, term()}.
 -type token()     :: binary().
 -type headers()   :: #{ apns_id          => binary()
                       , apns_expiration  => binary()
@@ -103,7 +105,7 @@ close_connection(ConnectionId) ->
 -spec push_notification( apns_connection:name() | pid()
                        , device_id()
                        , json()
-                       ) -> response() | {error, not_connection_owner}.
+                       ) -> response().
 push_notification(ConnectionId, DeviceId, JSONMap) ->
   Headers = default_headers(),
   push_notification(ConnectionId, DeviceId, JSONMap, Headers).
@@ -113,9 +115,9 @@ push_notification(ConnectionId, DeviceId, JSONMap) ->
                        , device_id()
                        , json()
                        , headers()
-                       ) -> response() | {error, not_connection_owner}.
+                       ) -> response().
 push_notification(ConnectionId, DeviceId, JSONMap, Headers) ->
-  Notification = jsx:encode(JSONMap),
+  Notification = iolist_to_binary(json:encode(JSONMap)),
   apns_connection:push_notification( ConnectionId
                                    , DeviceId
                                    , Notification
@@ -128,7 +130,7 @@ push_notification(ConnectionId, DeviceId, JSONMap, Headers) ->
                              , token()
                              , device_id()
                              , json()
-                             ) -> response() | {error, not_connection_owner}.
+                             ) -> response().
 push_notification_token(ConnectionId, Token, DeviceId, JSONMap) ->
   Headers = default_headers(),
   push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers).
@@ -139,9 +141,9 @@ push_notification_token(ConnectionId, Token, DeviceId, JSONMap) ->
                              , device_id()
                              , json()
                              , headers()
-                             ) -> response() | {error, not_connection_owner}.
+                             ) -> response().
 push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers) ->
-  Notification = jsx:encode(JSONMap),
+  Notification = iolist_to_binary(json:encode(JSONMap)),
   apns_connection:push_notification( ConnectionId
                                    , Token
                                    , DeviceId
@@ -156,15 +158,15 @@ generate_token(TeamId, KeyId) ->
 -spec generate_token(binary(), binary(), string()) -> token().
 generate_token(TeamId, KeyId, KeyPath) ->
   Algorithm = <<"ES256">>,
-  Header = jsx:encode([ {alg, Algorithm}
-                      , {typ, <<"JWT">>}
-                      , {kid, KeyId}
-                      ]),
-  Payload = jsx:encode([ {iss, TeamId}
-                       , {iat, apns_utils:epoch()}
-                       ]),
-  HeaderEncoded = base64url:encode(Header),
-  PayloadEncoded = base64url:encode(Payload),
+  Header = json:encode(#{ alg => Algorithm
+                        , typ => <<"JWT">>
+                        , kid => KeyId
+                        }),
+  Payload = json:encode(#{ iss => TeamId
+                         , iat => apns_utils:epoch()
+                         }),
+  HeaderEncoded = base64url:encode(iolist_to_binary(Header)),
+  PayloadEncoded = base64url:encode(iolist_to_binary(Payload)),
   DataEncoded = <<HeaderEncoded/binary, $., PayloadEncoded/binary>>,
   Signature = apns_utils:sign(DataEncoded, KeyPath),
   <<DataEncoded/binary, $., Signature/binary>>.
