@@ -13,7 +13,7 @@
   ]},
   {modules, []},
   {mod, {apns_app, []}},
-  {licenses,["Apache 2.0"]},
+  {licenses,["Apache-2.0"]},
   {links,[{"Github","https://github.com/inaka/apns4erl"}]},
   {build_tools, ["rebar3"]}
 ]}.
