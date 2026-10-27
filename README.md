@@ -246,6 +246,8 @@ If network goes down or something unexpected happens the `gun` connection with A
 
 We implemented an *Exponential Backoff* strategy. We can set the *ceiling* time adding the `backoff_ceiling` variable on the `config` file. By default it is set to 10 (seconds).
 
+A connection can also stop answering without going down, and then every push on it returns `{error, timeout}`. Set `reconnect_after_timeouts` on the `config` file to a positive integer to reconnect after that many pushes in a row time out with no push answered in between. 2 suits a connection that sends one push at a time. Every push counts, so use more if a connection has many pushes in flight at once. It is off (`infinity`) by default. Slow responses count too, so keep `timeout` well above normal response times.
+
 ## Close connections
 
 Apple recommends us to keep our connections open and avoid opening and closing very often. You can check the [Best Practices for Managing Connections](https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html) section.

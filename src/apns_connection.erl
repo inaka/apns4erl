@@ -107,6 +107,8 @@
                          , gun_monitor     => reference()
                          , gun_connect_ref => reference()
                          , client          := pid()
+                         , timeouts        := non_neg_integer()
+                         , max_timeouts    := pos_integer() | infinity
                          , backoff         := non_neg_integer()
                          , backoff_ceiling := non_neg_integer()
                          }.
@@ -225,6 +227,8 @@ init({Connection, Client}) ->
                , client          => Client
                , gun_streams     => #{}
                , max_gun_streams => default_max_gun_streams(Connection)
+               , timeouts        => 0
+               , max_timeouts    => application:get_env(apns, reconnect_after_timeouts, infinity)
                , backoff         => 1
                , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
                },
@@ -321,9 +325,9 @@ await_tunnel_up(EventType, EventContent, StateData) ->
   handle_common(EventType, EventContent, ?FUNCTION_NAME, StateData, postpone).
 
 -spec connected(_, _, _) -> _.
-connected(internal, on_connect, #{client := Client}) ->
+connected(internal, on_connect, #{client := Client} = StateData) ->
   Client ! {connection_up, self()},
-  keep_state_and_data;
+  {keep_state, StateData#{timeouts => 0}};
 connected( {call, From}
          , {push_notification, DeviceId, Notification, Headers}
          , StateData) ->
@@ -399,7 +403,7 @@ connected( info
   Streams1 = maps:remove(StreamRef, Streams0),
   gun:cancel(GunPid, StreamRef), %% final response, closing stream
   gen_statem:reply(From, {Status, Headers, no_body}),
-  {keep_state, StateData0#{gun_streams => Streams1}};
+  {keep_state, StateData0#{gun_streams => Streams1, timeouts => 0}};
 connected( info
          , {gun_response, GunPid, StreamRef, nofin, Status, Headers}
          , #{gun_pid := GunPid} = StateData0) ->
@@ -408,7 +412,7 @@ connected( info
   #{StreamRef := StreamState0} = Streams0,
   StreamState1 = StreamState0#{status => Status, headers => Headers},
   Streams1 = Streams0#{StreamRef => StreamState1},
-  {keep_state, StateData0#{gun_streams => Streams1}};
+  {keep_state, StateData0#{gun_streams => Streams1, timeouts => 0}};
 connected( info
          , {gun_data, GunPid, StreamRef, fin, Data}
          , #{gun_pid := GunPid} = StateData0) ->
@@ -464,7 +468,7 @@ connected( info
       gen_statem:reply(From, {error, timeout}),
       Streams1 = maps:remove(StreamRef, Streams0),
       gun:cancel(GunPid, StreamRef),
-      {keep_state, StateData0#{gun_streams => Streams1}};
+      timed_out(StateData0#{gun_streams => Streams1});
     error ->
       %% cant find stream data by stream ref?
       %% may be just answered and removed,
@@ -658,6 +662,18 @@ send_push(GunPid, DeviceId, HeadersMap, Notification) ->
   Headers = get_headers(HeadersMap),
   Path = get_device_path(DeviceId),
   gun:post(GunPid, Path, Headers, Notification).
+
+%% A connection can stop answering without going down. Reconnect after
+%% `reconnect_after_timeouts' timeouts in a row with no push answered in between.
+-spec timed_out(state()) -> gen_statem:event_handler_result(atom(), state()).
+timed_out(#{timeouts := Timeouts, max_timeouts := Max} = StateData)
+  when is_integer(Max), Timeouts + 1 >= Max ->
+  #{gun_streams := Streams} = StateData,
+  spawn(apns_connection, reply_errors_and_cancel_timers, [Streams, timeout]),
+  {next_state, down, StateData#{gun_streams => #{}},
+    {next_event, internal, {down, connected, timeout}}};
+timed_out(#{timeouts := Timeouts} = StateData) ->
+  {keep_state, StateData#{timeouts => Timeouts + 1}}.
 
 -spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
 backoff(N, Ceiling) ->
