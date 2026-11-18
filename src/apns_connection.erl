@@ -378,6 +378,18 @@ connected({call, From}, wait_apns_connection_up, _) ->
 connected({call, From}, Event, _) when Event =/= gun_pid ->
   {keep_state_and_data, {reply, From, {error, bad_call}}};
 connected( info
+         , {gun_response, GunPid, StreamRef, _, _, _}
+         , #{gun_pid := GunPid, gun_streams := Streams})
+  when not is_map_key(StreamRef, Streams) ->
+  %% the push already timed out, ignoring the late response
+  keep_state_and_data;
+connected( info
+         , {gun_data, GunPid, StreamRef, _, _}
+         , #{gun_pid := GunPid, gun_streams := Streams})
+  when not is_map_key(StreamRef, Streams) ->
+  %% the push already timed out, ignoring the late data
+  keep_state_and_data;
+connected( info
          , {gun_response, GunPid, StreamRef, fin, Status, Headers}
          , #{gun_pid := GunPid} = StateData0) ->
   %% got response without body

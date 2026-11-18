@@ -19,6 +19,7 @@
         , generate_token_jwt_claims/1
         , push_notification_from_any_process/1
         , push_notification_timeout/1
+        , late_response_after_timeout/1
         , default_headers/1
         , test_coverage/1
         ]).
@@ -43,6 +44,7 @@ all() ->  [ default_connection
           , generate_token_jwt_claims
           , push_notification_from_any_process
           , push_notification_timeout
+          , late_response_after_timeout
           , default_headers
           , test_coverage
           ].
@@ -373,6 +375,34 @@ push_notification_timeout(_Config) ->
   _ = meck:unload(),
 
   % turn back the original timeout
+  ok = application:set_env(apns, timeout, OriginalTimeout),
+  ok.
+
+-spec late_response_after_timeout(config()) -> ok.
+late_response_after_timeout(_Config) ->
+  {ok, OriginalTimeout} = application:get_env(apns, timeout),
+  ok = application:set_env(apns, timeout, 0),
+
+  StreamRef = make_ref(),
+  ok = mock_gun_open(),
+  ok = meck:expect(gun, post, fun(_, _, _, _) -> StreamRef end),
+  ok = mock_gun_cancel(),
+  {ok, ServerPid} = apns:connect(cert, ?FUNCTION_NAME),
+  GunPid = apns_connection:gun_pid(ServerPid),
+
+  {error, timeout} =
+    apns:push_notification(ServerPid, <<"device_id">>, #{<<"aps">> => #{}}),
+
+  % a response without a body, then one with a body, for the timed out push
+  ServerPid ! {gun_response, GunPid, StreamRef, fin, 200, []},
+  ServerPid ! {gun_response, GunPid, StreamRef, nofin, 400, []},
+  ServerPid ! {gun_data, GunPid, StreamRef, fin, <<"{}">>},
+
+  % the connection ignored them and is still up
+  GunPid = apns_connection:gun_pid(ServerPid),
+
+  ok = close_connection(ServerPid),
+  _ = meck:unload(),
   ok = application:set_env(apns, timeout, OriginalTimeout),
   ok.
 
