@@ -20,6 +20,8 @@
         , push_notification_from_any_process/1
         , push_notification_timeout/1
         , late_response_after_timeout/1
+        , reconnect_after_timeouts/1
+        , reconnect_after_timeouts_in_flight/1
         , default_headers/1
         , test_coverage/1
         ]).
@@ -45,6 +47,8 @@ all() ->  [ default_connection
           , push_notification_from_any_process
           , push_notification_timeout
           , late_response_after_timeout
+          , reconnect_after_timeouts
+          , reconnect_after_timeouts_in_flight
           , default_headers
           , test_coverage
           ].
@@ -371,6 +375,10 @@ push_notification_timeout(_Config) ->
   Notification = #{<<"aps">> => #{<<"alert">> => <<"another message">>}},
   DeviceId = <<"device_id">>,
   {error, timeout} = apns:push_notification(ConnectionName, DeviceId, Notification),
+  % by default timeouts never replace the connection
+  {error, timeout} = apns:push_notification(ConnectionName, DeviceId, Notification),
+  {error, timeout} = apns:push_notification(ConnectionName, DeviceId, Notification),
+  ok = assert_no_reconnect(whereis(ConnectionName)),
   ok = close_connection(ConnectionName),
   _ = meck:unload(),
 
@@ -404,6 +412,82 @@ late_response_after_timeout(_Config) ->
   ok = close_connection(ServerPid),
   _ = meck:unload(),
   ok = application:set_env(apns, timeout, OriginalTimeout),
+  ok.
+
+-spec reconnect_after_timeouts(config()) -> ok.
+reconnect_after_timeouts(_Config) ->
+  {ok, OriginalTimeout} = application:get_env(apns, timeout),
+  ok = application:set_env(apns, timeout, 0),
+  ok = application:set_env(apns, reconnect_after_timeouts, 2),
+
+  ok = mock_gun_open(),
+  ok = mock_gun_cancel(),
+  {ok, ServerPid} = apns:connect(cert, ?FUNCTION_NAME),
+  ok = expect_message({connection_up, ServerPid}),
+  GunPid = apns_connection:gun_pid(ServerPid),
+  Push = fun() ->
+    apns:push_notification(ServerPid, <<"device_id">>, #{<<"aps">> => #{}})
+  end,
+  ErrorBody = <<"{\"reason\":\"BadDeviceToken\"}">>,
+
+  % a response between two timeouts, with or without a body, resets the count
+  ok = mock_gun_post(),
+  {error, timeout} = Push(),
+  ok = mock_gun_post_responding({fin, 200, []}),
+  {200, [], no_body} = Push(),
+  ok = mock_gun_post(),
+  {error, timeout} = Push(),
+  ok = mock_gun_post_responding({nofin, 400, [], ErrorBody}),
+  {400, [], ErrorBody} = Push(),
+  ok = mock_gun_post(),
+  {error, timeout} = Push(),
+  ok = assert_no_reconnect(ServerPid),
+
+  % the second timeout in a row replaces the connection
+  {error, timeout} = Push(),
+  ok = expect_message({reconnecting, ServerPid}),
+  ok = expect_message({connection_up, ServerPid}),
+  true = (GunPid =/= apns_connection:gun_pid(ServerPid)),
+
+  % and the new connection starts counting from zero
+  {error, timeout} = Push(),
+  ok = assert_no_reconnect(ServerPid),
+
+  ok = close_connection(ServerPid),
+  _ = meck:unload(),
+  ok = application:unset_env(apns, reconnect_after_timeouts),
+  ok = application:set_env(apns, timeout, OriginalTimeout),
+  ok.
+
+-spec reconnect_after_timeouts_in_flight(config()) -> ok.
+reconnect_after_timeouts_in_flight(_Config) ->
+  ok = application:set_env(apns, reconnect_after_timeouts, 2),
+
+  ok = mock_gun_open(),
+  ok = mock_gun_post_unanswered(self()),
+  ok = mock_gun_cancel(),
+  {ok, ServerPid} = apns:connect(cert, ?FUNCTION_NAME),
+  ok = expect_message({connection_up, ServerPid}),
+  GunPid = apns_connection:gun_pid(ServerPid),
+  Notification = #{<<"aps">> => #{<<"alert">> => <<"in flight">>}},
+  Self = self(),
+
+  % five pushes in flight and two of them time out: the connection is
+  % replaced, and the other three return {error, timeout} right away
+  Pushers = [spawn(fun() ->
+               Self ! {self(), apns:push_notification(ServerPid, <<"device_id">>, Notification)}
+             end) || _ <- lists:seq(1, 5)],
+  [Stream1, Stream2 | _] = [pushed_stream() || _ <- Pushers],
+  ServerPid ! {timeout, GunPid, Stream1},
+  ServerPid ! {timeout, GunPid, Stream2},
+  [ok = expect_message({Pusher, {error, timeout}}) || Pusher <- Pushers],
+  ok = expect_message({reconnecting, ServerPid}),
+  ok = expect_message({connection_up, ServerPid}),
+  ok = assert_no_reconnect(ServerPid),
+
+  ok = close_connection(ServerPid),
+  _ = meck:unload(),
+  ok = application:unset_env(apns, reconnect_after_timeouts),
   ok.
 
 -spec default_headers(config()) -> ok.
@@ -486,6 +570,25 @@ wait_for(Fun, Expected, Retries) ->
       wait_for(Fun, Expected, Retries - 1)
   end.
 
+-spec expect_message(term()) -> ok.
+expect_message(Message) ->
+  receive
+    Message -> ok
+  after 5000 ->
+    ct:fail({timeout_waiting_for, Message})
+  end.
+
+%% gun_pid/1 is a call, so the connection has finished handling the last
+%% timeout, and sent any {reconnecting, _}, by the time it returns.
+-spec assert_no_reconnect(pid()) -> ok.
+assert_no_reconnect(ServerPid) ->
+  _ = apns_connection:gun_pid(ServerPid),
+  receive
+    {reconnecting, ServerPid} -> ct:fail(unexpected_reconnect)
+  after 0 ->
+    ok
+  end.
+
 -spec test_function() -> ok.
 test_function() ->
   receive
@@ -518,6 +621,22 @@ mock_gun_post_capturing(TestPid) ->
     self() ! {gun_response, GunPid, StreamRef, fin, 200, []},
     StreamRef
   end).
+
+-spec mock_gun_post_unanswered(pid()) -> ok.
+mock_gun_post_unanswered(TestPid) ->
+  meck:expect(gun, post, fun(_, _, _, _) ->
+    StreamRef = make_ref(),
+    TestPid ! {pushed_stream, StreamRef},
+    StreamRef
+  end).
+
+-spec pushed_stream() -> reference().
+pushed_stream() ->
+  receive
+    {pushed_stream, StreamRef} -> StreamRef
+  after 5000 ->
+    ct:fail("gun:post/4 was never called")
+  end.
 
 -spec mock_gun_cancel() -> ok.
 mock_gun_cancel() ->
