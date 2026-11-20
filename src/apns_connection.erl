@@ -614,9 +614,11 @@ tls_opts(Connection) ->
       [ {verify, verify_none} ]
   end.
 
+-spec http2_opts() -> gun:http2_opts().
 http2_opts() ->
-      %% we need to know settings (from APN server), gun expects map
-      #{notify_settings_changed => true}.
+      Opts = application:get_env(apns, http2_opts, #{}),
+      %% we need to know settings (from APN server), so this can't be turned off
+      Opts#{notify_settings_changed => true}.
 
 %%%===================================================================
 %%% Internal Functions

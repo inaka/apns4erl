@@ -22,6 +22,7 @@
         , late_response_after_timeout/1
         , reconnect_after_timeouts/1
         , reconnect_after_timeouts_in_flight/1
+        , http2_opts/1
         , default_headers/1
         , test_coverage/1
         ]).
@@ -49,6 +50,7 @@ all() ->  [ default_connection
           , late_response_after_timeout
           , reconnect_after_timeouts
           , reconnect_after_timeouts_in_flight
+          , http2_opts
           , default_headers
           , test_coverage
           ].
@@ -490,6 +492,33 @@ reconnect_after_timeouts_in_flight(_Config) ->
   ok = application:unset_env(apns, reconnect_after_timeouts),
   ok.
 
+-spec http2_opts(config()) -> ok.
+http2_opts(_Config) ->
+  ok = mock_gun_open_capturing(self()),
+
+  % by default, only the option apns4erl needs
+  {ok, DefaultPid} = apns:connect(cert, http2_opts_default),
+  #{http2_opts := DefaultOpts} = gun_open_opts(),
+  true = DefaultOpts =:= #{notify_settings_changed => true},
+  ok = close_connection(DefaultPid),
+
+  % the configured options, and apns4erl's option can't be turned off
+  ok = application:set_env(apns, http2_opts, #{ keepalive => 60000
+                                              , keepalive_tolerance => 2
+                                              , notify_settings_changed => false
+                                              }),
+  {ok, ServerPid} = apns:connect(cert, ?FUNCTION_NAME),
+  #{http2_opts := Opts} = gun_open_opts(),
+  true = Opts =:= #{ keepalive => 60000
+                   , keepalive_tolerance => 2
+                   , notify_settings_changed => true
+                   },
+
+  ok = close_connection(ServerPid),
+  _ = meck:unload(),
+  ok = application:unset_env(apns, http2_opts),
+  ok.
+
 -spec default_headers(config()) -> ok.
 default_headers(_Config) ->
   % Replace the environment header variables
@@ -606,6 +635,23 @@ mock_gun_open() ->
     self() ! {gun_up, GunPid, http2},
     {ok, GunPid}
   end).
+
+-spec mock_gun_open_capturing(pid()) -> ok.
+mock_gun_open_capturing(TestPid) ->
+  meck:expect(gun, open, fun(_, _, Opts) ->
+    TestPid ! {gun_open_opts, Opts},
+    GunPid = spawn(fun test_function/0),
+    self() ! {gun_up, GunPid, http2},
+    {ok, GunPid}
+  end).
+
+-spec gun_open_opts() -> map().
+gun_open_opts() ->
+  receive
+    {gun_open_opts, Opts} -> Opts
+  after 1000 ->
+    ct:fail("gun:open/3 was never called")
+  end.
 
 -spec mock_gun_post() -> ok.
 mock_gun_post() ->
