@@ -666,8 +666,10 @@ send_push(GunPid, DeviceId, HeadersMap, Notification) ->
 %% A connection can stop answering without going down. Reconnect after
 %% `reconnect_after_timeouts' timeouts in a row with no push answered in between.
 -spec timed_out(state()) -> gen_statem:event_handler_result(atom(), state()).
+timed_out(#{max_timeouts := infinity} = StateData) ->
+  {keep_state, StateData};
 timed_out(#{timeouts := Timeouts, max_timeouts := Max} = StateData)
-  when is_integer(Max), Timeouts + 1 >= Max ->
+  when Timeouts + 1 >= Max ->
   #{gun_streams := Streams} = StateData,
   spawn(apns_connection, reply_errors_and_cancel_timers, [Streams, timeout]),
   {next_state, down, StateData#{gun_streams => #{}},
